@@ -25,7 +25,7 @@ serve(async (req) => {
 
     const { method } = req
     const url = new URL(req.url)
-    const path = url.pathname.replace('/functions/v1/ai-chat', '')
+    const path = url.pathname.replace(/^\/functions\/v1\/ai-chat|^\/ai-chat/, '')
 
     // POST /chat - Send message to AI
     if (method === 'POST' && path === '/chat') {
