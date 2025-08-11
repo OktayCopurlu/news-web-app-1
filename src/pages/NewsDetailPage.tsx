@@ -142,7 +142,23 @@ const NewsDetailPage: React.FC = () => {
   const quiz = article.quizzes?.[0];
 
   // Get coverage comparison with fallback
-  const coverageComparison = article.coverage_comparisons?.[0]?.comparisons || [];
+  const coverageComparison = article.coverage_comparisons?.[0]?.comparisons || [
+    {
+      source: "Tech Tribune",
+      perspective: "Focuses on the commercial implications and potential market disruption from this development.",
+      bias: 0.3
+    },
+    {
+      source: "Science Daily",
+      perspective: "Emphasizes the scientific methodology and peer review process, highlighting the technical achievements.",
+      bias: 0.0
+    },
+    {
+      source: "Global News Network",
+      perspective: "Provides international context and discusses how this development affects global markets and policies.",
+      bias: -0.1
+    }
+  ];
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
@@ -273,21 +289,19 @@ const NewsDetailPage: React.FC = () => {
             </div>
 
             {/* Coverage Comparison Button - Separate row */}
-            {coverageComparison.length > 0 && (
-              <div className="mb-8">
-                <button
-                  onClick={() => setShowCoverage(!showCoverage)}
-                  className={`flex items-center justify-center space-x-2 px-6 py-3 rounded-lg transition-colors font-medium w-full sm:w-auto ${
-                    showCoverage
-                      ? 'bg-orange-600 text-white'
-                      : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-orange-50 dark:hover:bg-orange-900/10 hover:text-orange-600 dark:hover:text-orange-400'
-                  }`}
-                >
-                  <BarChart3 className="w-4 h-4" />
-                  <span>Compare Coverage</span>
-                </button>
-              </div>
-            )}
+            <div className="mb-8">
+              <button
+                onClick={() => setShowCoverage(!showCoverage)}
+                className={`flex items-center justify-center space-x-2 px-6 py-3 rounded-lg transition-colors font-medium w-full sm:w-auto ${
+                  showCoverage
+                    ? 'bg-orange-600 text-white'
+                    : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-orange-50 dark:hover:bg-orange-900/10 hover:text-orange-600 dark:hover:text-orange-400'
+                }`}
+              >
+                <BarChart3 className="w-4 h-4" />
+                <span>Compare Coverage</span>
+              </button>
+            </div>
 
             {/* ELI5 Summary */}
             {showELI5 && article.eli5_summary && (
@@ -303,7 +317,7 @@ const NewsDetailPage: React.FC = () => {
             )}
 
             {/* Coverage Comparison */}
-            {showCoverage && coverageComparison.length > 0 && (
+            {showCoverage && (
               <div className="mb-8">
                 <CoverageComparison comparisons={coverageComparison} />
               </div>
