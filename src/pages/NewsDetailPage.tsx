@@ -1,0 +1,254 @@
+import React, { useState, useEffect } from 'react';
+import { useParams, Link } from 'react-router-dom';
+import { Clock, Share2, Bookmark, MessageCircle, Play, Pause, BarChart3, Eye, Brain, ArrowLeft } from 'lucide-react';
+import { useNews } from '../contexts/NewsContext';
+import { useUser } from '../contexts/UserContext';
+import BiasIndicator from '../components/BiasIndicator';
+import CoverageComparison from '../components/CoverageComparison';
+import AIChat from '../components/AIChat';
+import AudioPlayer from '../components/AudioPlayer';
+
+const NewsDetailPage: React.FC = () => {
+  const { id } = useParams<{ id: string }>();
+  const { getArticleById } = useNews();
+  const { user } = useUser();
+  const [article, setArticle] = useState(getArticleById(id!));
+  const [showELI5, setShowELI5] = useState(false);
+  const [showCoverage, setShowCoverage] = useState(false);
+  const [showChat, setShowChat] = useState(false);
+  const [isBookmarked, setIsBookmarked] = useState(false);
+
+  useEffect(() => {
+    if (id) {
+      const foundArticle = getArticleById(id);
+      setArticle(foundArticle);
+    }
+  }, [id, getArticleById]);
+
+  if (!article) {
+    return (
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
+        <div className="text-center">
+          <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">
+            Article Not Found
+          </h2>
+          <p className="text-gray-600 dark:text-gray-400 mb-6">
+            The article you're looking for doesn't exist or has been removed.
+          </p>
+          <Link
+            to="/"
+            className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+          >
+            Back to Home
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  };
+
+  return (
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Back Button */}
+        <Link
+          to="/"
+          className="inline-flex items-center space-x-2 text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 mb-6 transition-colors"
+        >
+          <ArrowLeft className="w-4 h-4" />
+          <span>Back to News</span>
+        </Link>
+
+        {/* Article Header */}
+        <article className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg overflow-hidden">
+          {/* Hero Image */}
+          <div className="relative h-64 sm:h-80">
+            <img
+              src={article.imageUrl}
+              alt={article.title}
+              className="w-full h-full object-cover"
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+            <div className="absolute bottom-4 left-4 right-4">
+              <div className="flex items-center space-x-2 text-white/80 text-sm mb-2">
+                <span className="bg-blue-600 px-2 py-1 rounded text-xs font-medium">
+                  {article.category}
+                </span>
+                <span>{formatDate(article.publishedAt)}</span>
+              </div>
+              <h1 className="text-2xl sm:text-3xl font-bold text-white leading-tight">
+                {article.title}
+              </h1>
+            </div>
+          </div>
+
+          <div className="p-6 sm:p-8">
+            {/* Article Meta */}
+            <div className="flex flex-wrap items-center justify-between gap-4 mb-6 pb-6 border-b border-gray-200 dark:border-gray-700">
+              <div className="flex items-center space-x-4 text-sm text-gray-600 dark:text-gray-400">
+                <span className="flex items-center space-x-1">
+                  <Clock className="w-4 h-4" />
+                  <span>{article.readingTime} min read</span>
+                </span>
+                <span>By {article.source}</span>
+              </div>
+              
+              <div className="flex items-center space-x-2">
+                {/* Audio Player */}
+                {article.audioSummary && user?.preferences.audioPreferences && (
+                  <AudioPlayer audioUrl={article.audioSummary.url} duration={article.audioSummary.duration} />
+                )}
+                
+                <button
+                  onClick={() => setIsBookmarked(!isBookmarked)}
+                  className={`p-2 rounded-lg transition-colors ${
+                    isBookmarked
+                      ? 'bg-blue-100 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400'
+                      : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600'
+                  }`}
+                >
+                  <Bookmark className="w-4 h-4" />
+                </button>
+                
+                <button className="p-2 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors">
+                  <Share2 className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+
+            {/* Bias Analysis */}
+            {user?.preferences.biasAnalysis && (
+              <div className="mb-6">
+                <BiasIndicator article={article} />
+              </div>
+            )}
+
+            {/* Summary */}
+            <div className="mb-8">
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">
+                Summary
+              </h2>
+              <p className="text-gray-700 dark:text-gray-300 leading-relaxed text-lg">
+                {article.summary}
+              </p>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex flex-wrap gap-3 mb-8">
+              {article.eli5Summary && (
+                <button
+                  onClick={() => setShowELI5(!showELI5)}
+                  className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-colors ${
+                    showELI5
+                      ? 'bg-purple-100 dark:bg-purple-900/20 text-purple-700 dark:text-purple-300'
+                      : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-purple-50 dark:hover:bg-purple-900/10'
+                  }`}
+                >
+                  <Brain className="w-4 h-4" />
+                  <span>Explain Like I'm 5</span>
+                </button>
+              )}
+              
+              {article.coverageComparison && (
+                <button
+                  onClick={() => setShowCoverage(!showCoverage)}
+                  className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-colors ${
+                    showCoverage
+                      ? 'bg-orange-100 dark:bg-orange-900/20 text-orange-700 dark:text-orange-300'
+                      : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-orange-50 dark:hover:bg-orange-900/10'
+                  }`}
+                >
+                  <BarChart3 className="w-4 h-4" />
+                  <span>Compare Coverage</span>
+                </button>
+              )}
+              
+              <button
+                onClick={() => setShowChat(!showChat)}
+                className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-colors ${
+                  showChat
+                    ? 'bg-blue-100 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300'
+                    : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-blue-50 dark:hover:bg-blue-900/10'
+                }`}
+              >
+                <MessageCircle className="w-4 h-4" />
+                <span>Ask AI More</span>
+              </button>
+              
+              <Link
+                to={`/quiz/${article.id}`}
+                className="flex items-center space-x-2 px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-green-50 dark:hover:bg-green-900/10 transition-colors"
+              >
+                <Eye className="w-4 h-4" />
+                <span>Test Knowledge</span>
+              </Link>
+            </div>
+
+            {/* ELI5 Summary */}
+            {showELI5 && article.eli5Summary && (
+              <div className="mb-8 p-4 bg-purple-50 dark:bg-purple-900/20 rounded-lg border border-purple-200 dark:border-purple-800">
+                <h3 className="font-semibold text-purple-800 dark:text-purple-300 mb-2 flex items-center space-x-2">
+                  <Brain className="w-4 h-4" />
+                  <span>Explain Like I'm 5</span>
+                </h3>
+                <p className="text-purple-700 dark:text-purple-300">
+                  {article.eli5Summary}
+                </p>
+              </div>
+            )}
+
+            {/* Coverage Comparison */}
+            {showCoverage && article.coverageComparison && (
+              <div className="mb-8">
+                <CoverageComparison comparisons={article.coverageComparison} />
+              </div>
+            )}
+
+            {/* AI Chat */}
+            {showChat && (
+              <div className="mb-8">
+                <AIChat article={article} />
+              </div>
+            )}
+
+            {/* Full Article Content */}
+            <div className="prose prose-lg dark:prose-invert max-w-none">
+              <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
+                Full Article
+              </h2>
+              <div className="text-gray-700 dark:text-gray-300 leading-relaxed whitespace-pre-line">
+                {article.content}
+              </div>
+            </div>
+
+            {/* Tags */}
+            <div className="mt-8 pt-6 border-t border-gray-200 dark:border-gray-700">
+              <h3 className="text-sm font-medium text-gray-900 dark:text-white mb-3">Tags</h3>
+              <div className="flex flex-wrap gap-2">
+                {article.tags.map((tag) => (
+                  <span
+                    key={tag}
+                    className="px-3 py-1 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-full text-sm"
+                  >
+                    {tag}
+                  </span>
+                ))}
+              </div>
+            </div>
+          </div>
+        </article>
+      </div>
+    </div>
+  );
+};
+
+export default NewsDetailPage;
