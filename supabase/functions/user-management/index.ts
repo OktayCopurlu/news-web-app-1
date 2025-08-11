@@ -155,9 +155,44 @@ serve(async (req) => {
 
       let userId = null
       if (authHeader) {
-        const { data: { user } } = await supabaseClient.auth.getUser(
-          authHeader.replace('Bearer ', '')
-        )
+        try {
+          const { data: { user } } = await supabaseClient.auth.getUser(
+            authHeader.replace('Bearer ', '')
+          )
+          userId = user?.id
+        } catch (error) {
+          console.warn('Failed to get user from auth header:', error)
+        }
+      }
+
+      // Always allow interaction tracking, even for anonymous users
+      try {
+        if (userId) {
+          await supabaseClient
+            .from('user_interactions')
+            .insert({
+              user_id: userId,
+              article_id: articleId,
+              interaction_type: interactionType,
+              metadata
+            })
+        }
+
+        // Update article view count if it's a view interaction
+        if (interactionType === 'view') {
+          await supabaseClient
+            .rpc('increment_view_count', { article_id: articleId })
+        }
+      } catch (error) {
+        console.warn('Failed to track interaction:', error)
+        // Don't throw error - interaction tracking should be non-blocking
+      }
+
+      return new Response(JSON.stringify({ success: true }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      })
+    }
+
         userId = user?.id
       }
 

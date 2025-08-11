@@ -543,8 +543,13 @@ export const userApi = {
         headers,
         body: JSON.stringify({ articleId, interactionType, metadata })
       })
-      if (!response.ok) throw new Error('Failed to track interaction')
-      return response.json()
+      
+      if (!response.ok) {
+        console.warn('Failed to track interaction:', response.status, response.statusText)
+        return { success: false }
+      }
+      
+      return await response.json()
     } catch (error) {
       console.warn('Failed to track interaction:', error)
       return { success: false }
