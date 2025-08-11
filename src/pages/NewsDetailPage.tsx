@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import { Clock, Share2, Bookmark, MessageCircle, BarChart3, Eye, Brain, ArrowLeft, Loader } from 'lucide-react';
 import { useNews } from '../contexts/NewsContext';
 import { useUser } from '../contexts/UserContext';
@@ -11,6 +11,7 @@ import AudioPlayer from '../components/AudioPlayer';
 
 const NewsDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
   const { getArticleById } = useNews();
   const { user } = useUser();
   const [article, setArticle] = useState<any>(null);
