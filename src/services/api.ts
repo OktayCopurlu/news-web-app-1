@@ -139,12 +139,16 @@ const API_BASE = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1`
 const isSupabaseConfigured = () => {
   const url = import.meta.env.VITE_SUPABASE_URL
   const key = import.meta.env.VITE_SUPABASE_ANON_KEY
-  return url && key && 
-    url !== 'https://your-project-ref.supabase.co' && 
-    key !== 'your-anon-key-here' && 
-    !key.includes('placeholder') &&
-    url.includes('supabase.co') &&
-    key.length > 50
+  
+  // Check if environment variables exist and are not placeholder values
+  if (!url || !key) return false
+  if (url === 'https://your-project-ref.supabase.co') return false
+  if (key === 'your-anon-key-here') return false
+  if (key.includes('placeholder')) return false
+  if (!url.includes('supabase.co')) return false
+  if (key.length < 50) return false
+  
+  return true
 }
 
 // Helper function to get auth headers
@@ -164,11 +168,12 @@ export const newsApi = {
   // Fetch all articles
   getArticles: async () => {
     if (!isSupabaseConfigured()) {
+      console.log('Using fallback articles - Supabase not configured')
       return FALLBACK_ARTICLES
     }
     
-    const headers = await getAuthHeaders()
     try {
+      const headers = await getAuthHeaders()
       const response = await fetch(`${API_BASE}/news-processor/articles`, { headers })
       if (!response.ok) throw new Error('Failed to fetch articles')
       return response.json()
@@ -181,6 +186,7 @@ export const newsApi = {
   // Get specific article
   getArticle: async (id: string) => {
     if (!isSupabaseConfigured()) {
+      console.log('Using fallback article - Supabase not configured')
       return FALLBACK_ARTICLES.find(article => article.id === id) || null
     }
     
@@ -198,28 +204,31 @@ export const newsApi = {
   // Generate AI explanation for article
   generateExplanation: async (id: string) => {
     if (!isSupabaseConfigured()) {
-      // Return a mock explanation when Supabase is not configured
+      console.log('Using fallback explanation - Supabase not configured')
       const article = FALLBACK_ARTICLES.find(a => a.id === id)
       if (!article) throw new Error('Article not found')
       
       return {
-        explanation: `This is a comprehensive analysis of "${article.title}". 
+        explanation: `**Comprehensive Analysis: "${article.title}"**
         
-The story represents a significant development in the ${article.category.toLowerCase()} sector. Here's what you need to know:
+This story represents a significant development in the ${article.category.toLowerCase()} sector. Here's what you need to know:
 
 **Background & Context:**
 ${article.summary}
 
 **Key Implications:**
-This development could have far-reaching consequences for the industry and society at large. The timing is particularly significant given current global trends and technological advances.
+This development could have far-reaching consequences for the industry and society at large. The timing is particularly significant given current global trends and technological advances in ${article.category.toLowerCase()}.
 
 **What This Means:**
-For the average person, this news indicates important changes ahead. The implications extend beyond immediate effects to long-term societal and economic impacts.
+For the average person, this news indicates important changes ahead. The implications extend beyond immediate effects to long-term societal and economic impacts, particularly in how we approach ${article.tags.slice(0, 2).join(' and ')}.
 
 **Looking Forward:**
-Experts will be watching closely to see how this develops over the coming months. This story is likely to have lasting significance in the ${article.category.toLowerCase()} field.
+Experts will be watching closely to see how this develops over the coming months. This story is likely to have lasting significance in the ${article.category.toLowerCase()} field and could influence future policy and innovation.
 
-*Note: This is a demonstration explanation. Connect to Supabase for AI-generated content.*`
+**Related Developments:**
+Keep an eye on related stories about ${article.tags.slice(2, 4).join(', ')} as they may provide additional context to this developing situation.
+
+*Note: This is a demonstration explanation. Connect to Supabase and configure Gemini API for AI-generated content.*`
       }
     }
     
@@ -233,7 +242,25 @@ Experts will be watching closely to see how this develops over the coming months
       return response.json()
     } catch (error) {
       console.error('Failed to generate AI explanation:', error)
-      throw new Error('Failed to generate explanation. Please check your Supabase and Gemini API configuration.')
+      // Fallback to demo explanation instead of throwing error
+      const article = FALLBACK_ARTICLES.find(a => a.id === id)
+      if (!article) throw new Error('Article not found')
+      
+      return {
+        explanation: `**Demo Explanation: "${article.title}"**
+        
+This is a fallback explanation since the AI service is currently unavailable.
+
+**Summary:**
+${article.summary}
+
+**Key Points:**
+- This story falls under the ${article.category} category
+- It involves topics like ${article.tags.slice(0, 3).join(', ')}
+- The source is ${article.source}
+
+*Note: AI explanation service is currently unavailable. Please check your Supabase and Gemini API configuration.*`
+      }
     }
   },
 
@@ -256,6 +283,7 @@ Experts will be watching closely to see how this develops over the coming months
   // Search articles
   searchArticles: async (query: string, filters: { category?: string; language?: string } = {}) => {
     if (!isSupabaseConfigured()) {
+      console.log('Using fallback search - Supabase not configured')
       const filtered = FALLBACK_ARTICLES.filter(article => 
         article.title.toLowerCase().includes(query.toLowerCase()) ||
         article.summary.toLowerCase().includes(query.toLowerCase()) ||
@@ -264,26 +292,42 @@ Experts will be watching closely to see how this develops over the coming months
       return filtered
     }
     
-    const params = new URLSearchParams({ q: query, ...filters })
-    const headers = await getAuthHeaders()
-    const response = await fetch(`${API_BASE}/news-aggregator/search?${params}`, { headers })
-    if (!response.ok) throw new Error('Failed to search articles')
-    return response.json()
+    try {
+      const params = new URLSearchParams({ q: query, ...filters })
+      const headers = await getAuthHeaders()
+      const response = await fetch(`${API_BASE}/news-aggregator/search?${params}`, { headers })
+      if (!response.ok) throw new Error('Failed to search articles')
+      return response.json()
+    } catch (error) {
+      console.warn('Search failed, using fallback:', error)
+      const filtered = FALLBACK_ARTICLES.filter(article => 
+        article.title.toLowerCase().includes(query.toLowerCase()) ||
+        article.summary.toLowerCase().includes(query.toLowerCase()) ||
+        (filters.category && filters.category !== 'all' ? article.category.toLowerCase() === filters.category.toLowerCase() : true)
+      )
+      return filtered
+    }
   },
 
   // Fetch and process new articles
   fetchNews: async () => {
     if (!isSupabaseConfigured()) {
+      console.log('Using fallback news fetch - Supabase not configured')
       return { processed: FALLBACK_ARTICLES.length, articles: FALLBACK_ARTICLES }
     }
     
-    const headers = await getAuthHeaders()
-    const response = await fetch(`${API_BASE}/news-aggregator/fetch-news`, {
-      method: 'POST',
-      headers
-    })
-    if (!response.ok) throw new Error('Failed to fetch news')
-    return response.json()
+    try {
+      const headers = await getAuthHeaders()
+      const response = await fetch(`${API_BASE}/news-aggregator/fetch-news`, {
+        method: 'POST',
+        headers
+      })
+      if (!response.ok) throw new Error('Failed to fetch news')
+      return response.json()
+    } catch (error) {
+      console.warn('News fetch failed, using fallback:', error)
+      return { processed: FALLBACK_ARTICLES.length, articles: FALLBACK_ARTICLES }
+    }
   },
 
   // Get trending topics
