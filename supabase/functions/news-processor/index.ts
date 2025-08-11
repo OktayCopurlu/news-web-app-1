@@ -10,7 +10,6 @@ const corsHeaders = {
 interface NewsArticle {
   title: string;
   summary: string;
-  content: string;
   category: string;
   language: string;
   source: string;
@@ -55,6 +54,78 @@ serve(async (req) => {
       if (error) throw error
 
       return new Response(JSON.stringify(articles), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      })
+    }
+
+    // POST /articles/:id/explanation - Generate AI explanation for article
+    if (method === 'POST' && path.includes('/explanation')) {
+      const articleId = path.split('/')[2]
+      
+      // Get article
+      const { data: article, error: articleError } = await supabaseClient
+        .from('articles')
+        .select('*')
+        .eq('id', articleId)
+        .single()
+
+      if (articleError) throw articleError
+
+      // Check if explanation already exists
+      if (article.explanation_generated && article.ai_explanation) {
+        return new Response(JSON.stringify({ explanation: article.ai_explanation }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        })
+      }
+
+      // Generate detailed AI explanation
+      const explanationPrompt = `
+        Create a comprehensive, detailed explanation of this news story. This should be an original analysis and explanation, not a copy of existing content.
+        
+        Article Title: ${article.title}
+        Article Summary: ${article.summary}
+        Category: ${article.category}
+        Source: ${article.source}
+        
+        Provide a detailed explanation that includes:
+        1. Background context and why this story matters
+        2. Key facts and developments
+        3. Implications and potential consequences
+        4. Different perspectives on the issue
+        5. What this means for the average person
+        6. Future outlook and what to watch for
+        
+        Write this as an informative, educational explanation (800-1200 words) that helps readers fully understand the significance of this news story. Use clear, accessible language while being thorough and analytical.
+      `
+
+      const geminiResponse = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${geminiApiKey}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contents: [{ parts: [{ text: explanationPrompt }] }]
+          })
+        }
+      )
+
+      const geminiData = await geminiResponse.json()
+      const aiExplanation = geminiData.candidates[0]?.content?.parts[0]?.text || 
+        "Unable to generate detailed explanation at this time. Please try again later."
+
+      // Update article with AI explanation
+      const { error: updateError } = await supabaseClient
+        .from('articles')
+        .update({
+          ai_explanation: aiExplanation,
+          explanation_generated: true,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', articleId)
+
+      if (updateError) throw updateError
+
+      return new Response(JSON.stringify({ explanation: aiExplanation }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       })
     }
@@ -125,7 +196,8 @@ serve(async (req) => {
           ...articleData,
           tags: analysis.tags,
           eli5_summary: analysis.eli5Summary,
-          reading_time: Math.ceil(articleData.content.split(' ').length / 200)
+          reading_time: Math.ceil(articleData.summary.split(' ').length / 50),
+          explanation_generated: false
         })
         .select()
         .single()

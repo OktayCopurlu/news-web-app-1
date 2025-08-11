@@ -39,7 +39,8 @@ export interface Database {
           id: string
           title: string
           summary: string
-          content: string
+          ai_explanation: string | null
+          explanation_generated: boolean
           category: string
           language: string
           source: string

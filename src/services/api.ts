@@ -6,7 +6,8 @@ const FALLBACK_ARTICLES = [
     id: '1',
     title: "Major Breakthrough in Quantum Computing Achieved by International Research Team",
     summary: "Scientists from MIT, Google, and several international universities have announced a significant breakthrough in quantum computing that could revolutionize data processing and encryption. The team successfully demonstrated a new quantum algorithm that can solve complex optimization problems exponentially faster than classical computers.",
-    content: "Scientists from MIT, Google, and several international universities have announced a significant breakthrough in quantum computing that could revolutionize data processing and encryption. The team successfully demonstrated a new quantum algorithm that can solve complex optimization problems exponentially faster than classical computers. This advancement brings us closer to practical quantum computing applications in finance, drug discovery, and artificial intelligence. The research, published in Nature, shows how quantum entanglement can be maintained at room temperature for extended periods, addressing one of the biggest challenges in quantum computing. Industry experts believe this could lead to commercial quantum computers within the next decade, potentially transforming industries that rely on complex calculations and data analysis.",
+    ai_explanation: null,
+    explanation_generated: false,
     category: "Technology",
     language: "English",
     source: "TechCrunch",
@@ -78,7 +79,8 @@ const FALLBACK_ARTICLES = [
     id: '2',
     title: "Global Climate Summit Reaches Historic Agreement on Carbon Reduction",
     summary: "World leaders at the International Climate Summit have reached a groundbreaking agreement to reduce global carbon emissions by 60% over the next decade. The accord includes specific targets for renewable energy adoption and a $500 billion fund for clean energy infrastructure.",
-    content: "World leaders at the International Climate Summit have reached a groundbreaking agreement to reduce global carbon emissions by 60% over the next decade. The accord, signed by 195 countries, includes specific targets for renewable energy adoption, carbon pricing mechanisms, and technology transfer to developing nations. Key provisions include a $500 billion fund for clean energy infrastructure, mandatory carbon reporting for large corporations, and accelerated phase-out of fossil fuel subsidies. Environmental groups have praised the agreement as the most ambitious climate action plan ever implemented, while some critics argue the targets may be too aggressive for certain economies.",
+    ai_explanation: null,
+    explanation_generated: false,
     category: "Environment",
     language: "English",
     source: "Reuters",
@@ -186,6 +188,21 @@ export const newsApi = {
       console.warn('Using fallback data:', error)
       return FALLBACK_ARTICLES.find(article => article.id === id) || null
     }
+  },
+
+  // Generate AI explanation for article
+  generateExplanation: async (id: string) => {
+    if (!isSupabaseConfigured()) {
+      throw new Error('Supabase not configured')
+    }
+    
+    const headers = await getAuthHeaders()
+    const response = await fetch(`${API_BASE}/news-processor/articles/${id}/explanation`, {
+      method: 'POST',
+      headers
+    })
+    if (!response.ok) throw new Error('Failed to generate explanation')
+    return response.json()
   },
 
   // Create new article

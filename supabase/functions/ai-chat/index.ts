@@ -50,6 +50,7 @@ serve(async (req) => {
         Article Source: ${article.source}
         Bias Score: ${article.article_analytics[0]?.bias_score || 0}
         Sentiment: ${article.article_analytics[0]?.sentiment_label || 'neutral'}
+        ${article.ai_explanation ? `\nDetailed Explanation: ${article.ai_explanation}` : ''}
         
         Previous conversation:
         ${chatHistory.map((msg: any) => `${msg.type}: ${msg.content}`).join('\n')}

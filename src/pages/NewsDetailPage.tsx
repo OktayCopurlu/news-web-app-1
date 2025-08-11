@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { Clock, Share2, Bookmark, MessageCircle, Play, Pause, BarChart3, Eye, Brain, ArrowLeft } from 'lucide-react';
+import { Clock, Share2, Bookmark, MessageCircle, BarChart3, Eye, Brain, ArrowLeft, Loader } from 'lucide-react';
 import { useNews } from '../contexts/NewsContext';
 import { useUser } from '../contexts/UserContext';
+import { newsApi } from '../services/api';
 import BiasIndicator from '../components/BiasIndicator';
 import CoverageComparison from '../components/CoverageComparison';
 import AIChat from '../components/AIChat';
@@ -15,6 +16,7 @@ const NewsDetailPage: React.FC = () => {
   const [article, setArticle] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [generatingExplanation, setGeneratingExplanation] = useState(false);
   const [showELI5, setShowELI5] = useState(false);
   const [showCoverage, setShowCoverage] = useState(false);
   const [showChat, setShowChat] = useState(false);
@@ -39,6 +41,24 @@ const NewsDetailPage: React.FC = () => {
 
     fetchArticle();
   }, [id, getArticleById]);
+
+  const handleGenerateExplanation = async () => {
+    if (!article || generatingExplanation) return;
+    
+    try {
+      setGeneratingExplanation(true);
+      const response = await newsApi.generateExplanation(article.id);
+      setArticle(prev => ({
+        ...prev,
+        ai_explanation: response.explanation,
+        explanation_generated: true
+      }));
+    } catch (err) {
+      console.error('Failed to generate explanation:', err);
+    } finally {
+      setGeneratingExplanation(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -290,12 +310,54 @@ const NewsDetailPage: React.FC = () => {
             )}
 
             {/* Full Article Content */}
-            <div className="prose prose-lg dark:prose-invert max-w-none">
-              <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
-                Full Article
-              </h2>
-              <div className="text-gray-700 dark:text-gray-300 leading-relaxed whitespace-pre-line">
-                {article.content}
+            <div className="mb-8">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
+                  Detailed AI Explanation
+                </h2>
+                {!article.explanation_generated && !article.ai_explanation && (
+                  <button
+                    onClick={handleGenerateExplanation}
+                    disabled={generatingExplanation}
+                    className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  >
+                    {generatingExplanation ? (
+                      <Loader className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <Brain className="w-4 h-4" />
+                    )}
+                    <span>{generatingExplanation ? 'Generating...' : 'Generate Explanation'}</span>
+                  </button>
+                )}
+              </div>
+              
+              {article.ai_explanation ? (
+                <div className="prose prose-lg dark:prose-invert max-w-none">
+                  <div className="text-gray-700 dark:text-gray-300 leading-relaxed whitespace-pre-line bg-gray-50 dark:bg-gray-700 rounded-lg p-6">
+                    {article.ai_explanation}
+                  </div>
+                </div>
+              ) : !generatingExplanation ? (
+                <div className="text-center py-8 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                  <Brain className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                  <p className="text-gray-600 dark:text-gray-400 mb-4">
+                    Get a detailed AI explanation of this news story
+                  </p>
+                  <button
+                    onClick={handleGenerateExplanation}
+                    className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+                  >
+                    Generate Detailed Explanation
+                  </button>
+                </div>
+              ) : (
+                <div className="text-center py-8 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                  <Loader className="w-8 h-8 animate-spin text-blue-600 mx-auto mb-4" />
+                  <p className="text-gray-600 dark:text-gray-400">
+                    AI is generating a detailed explanation...
+                  </p>
+                </div>
+              )}
               </div>
             </div>
 

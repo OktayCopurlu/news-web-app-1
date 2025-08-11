@@ -59,7 +59,8 @@ serve(async (req) => {
         Difficulty level: ${difficulty}
         
         Article Title: ${article.title}
-        Article Content: ${article.content}
+        Article Summary: ${article.summary}
+        ${article.ai_explanation ? `Article Explanation: ${article.ai_explanation}` : ''}
         
         Generate questions that test:
         1. Main facts and details

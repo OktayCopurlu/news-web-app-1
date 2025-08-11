@@ -18,37 +18,37 @@ const SAMPLE_ARTICLES = [
   {
     title: "Major Breakthrough in Quantum Computing Achieved by International Research Team",
     category: "Technology",
-    content: "Scientists from MIT, Google, and several international universities have announced a significant breakthrough in quantum computing that could revolutionize data processing and encryption. The team successfully demonstrated a new quantum algorithm that can solve complex optimization problems exponentially faster than classical computers. This advancement brings us closer to practical quantum computing applications in finance, drug discovery, and artificial intelligence. The research, published in Nature, shows how quantum entanglement can be maintained at room temperature for extended periods, addressing one of the biggest challenges in quantum computing. Industry experts believe this could lead to commercial quantum computers within the next decade, potentially transforming industries that rely on complex calculations and data analysis.",
+    summary: "Scientists from MIT, Google, and several international universities have announced a significant breakthrough in quantum computing that could revolutionize data processing and encryption. The team successfully demonstrated a new quantum algorithm that can solve complex optimization problems exponentially faster than classical computers.",
     imageUrl: "https://images.pexels.com/photos/2599244/pexels-photo-2599244.jpeg"
   },
   {
     title: "Global Climate Summit Reaches Historic Agreement on Carbon Reduction",
     category: "Environment",
-    content: "World leaders at the International Climate Summit have reached a groundbreaking agreement to reduce global carbon emissions by 60% over the next decade. The accord, signed by 195 countries, includes specific targets for renewable energy adoption, carbon pricing mechanisms, and technology transfer to developing nations. Key provisions include a $500 billion fund for clean energy infrastructure, mandatory carbon reporting for large corporations, and accelerated phase-out of fossil fuel subsidies. Environmental groups have praised the agreement as the most ambitious climate action plan ever implemented, while some critics argue the targets may be too aggressive for certain economies. The agreement will be implemented through a series of binding commitments starting next year.",
+    summary: "World leaders at the International Climate Summit have reached a groundbreaking agreement to reduce global carbon emissions by 60% over the next decade. The accord includes specific targets for renewable energy adoption and a $500 billion fund for clean energy infrastructure.",
     imageUrl: "https://images.pexels.com/photos/1108572/pexels-photo-1108572.jpeg"
   },
   {
     title: "Revolutionary Gene Therapy Shows Promise in Treating Rare Diseases",
     category: "Health",
-    content: "A new gene therapy developed by researchers at Johns Hopkins University has shown remarkable success in treating patients with rare genetic disorders. The treatment, which uses CRISPR technology to edit defective genes, has been tested on 50 patients with promising results. Early trials show a 80% improvement in symptoms for conditions like sickle cell disease and beta-thalassemia. The therapy works by extracting the patient's stem cells, correcting the genetic defect in a laboratory, and then reintroducing the healthy cells back into the patient. While the treatment is still in clinical trials, researchers are optimistic about its potential to treat hundreds of rare genetic diseases that currently have no cure. The FDA has granted breakthrough therapy designation, expediting the approval process.",
+    summary: "A new gene therapy developed by researchers at Johns Hopkins University has shown remarkable success in treating patients with rare genetic disorders using CRISPR technology, with 80% improvement in symptoms for conditions like sickle cell disease.",
     imageUrl: "https://images.pexels.com/photos/3735680/pexels-photo-3735680.jpeg"
   },
   {
     title: "Central Bank Digital Currencies Pilot Programs Show Mixed Results",
     category: "Finance",
-    content: "Central banks in China, Sweden, and the Bahamas have released preliminary results from their digital currency pilot programs, revealing both opportunities and challenges for the future of money. China's digital yuan has processed over $13 billion in transactions, demonstrating the technical feasibility of large-scale CBDC implementation. However, adoption rates remain lower than expected, with many consumers preferring existing payment apps. Sweden's e-krona pilot has faced technical hurdles and concerns about privacy and surveillance. The Bahamas' Sand Dollar has successfully improved financial inclusion in remote areas but struggles with merchant adoption. Central bankers emphasize that these are early-stage experiments, and final implementation will require addressing privacy concerns, ensuring cybersecurity, and maintaining monetary policy effectiveness.",
+    summary: "Central banks in China, Sweden, and the Bahamas have released preliminary results from their digital currency pilot programs, revealing both opportunities and challenges for the future of money, with mixed adoption rates and technical hurdles.",
     imageUrl: "https://images.pexels.com/photos/6801648/pexels-photo-6801648.jpeg"
   },
   {
     title: "SpaceX Announces Plans for First Commercial Moon Base by 2030",
     category: "Space",
-    content: "SpaceX has unveiled ambitious plans to establish the first commercial lunar base by 2030, marking a new era in space commercialization. The project, called 'Luna Gateway,' will serve as a hub for scientific research, mining operations, and eventually tourism. The base will be constructed using SpaceX's Starship heavy-lift rocket and will initially house 12 astronauts and researchers. Key features include advanced life support systems, 3D printing facilities for equipment manufacturing, and solar arrays for power generation. The project has secured partnerships with NASA, the European Space Agency, and several private companies. Construction materials will be sourced partially from lunar regolith, reducing the need for Earth-based supplies. This initiative represents a significant step toward humanity becoming a multi-planetary species and could pave the way for future Mars colonization efforts.",
+    summary: "SpaceX has unveiled ambitious plans to establish the first commercial lunar base by 2030, called 'Luna Gateway,' which will serve as a hub for scientific research, mining operations, and eventually tourism, marking a new era in space commercialization.",
     imageUrl: "https://images.pexels.com/photos/586063/pexels-photo-586063.jpeg"
   },
   {
     title: "Major Cybersecurity Breach Exposes Vulnerabilities in Critical Infrastructure",
     category: "Cybersecurity",
-    content: "A sophisticated cyberattack on multiple energy companies has exposed critical vulnerabilities in national infrastructure systems, prompting urgent calls for enhanced cybersecurity measures. The attack, attributed to a state-sponsored group, temporarily disrupted power grids in three states and compromised sensitive operational data. Security experts report that the attackers used advanced persistent threat techniques, remaining undetected for several months while gathering intelligence. The breach highlights the urgent need for improved cybersecurity protocols in critical infrastructure sectors. Government agencies are now mandating new security standards for energy companies, including real-time monitoring systems, enhanced employee training, and regular penetration testing. The incident has accelerated discussions about creating a national cybersecurity agency dedicated to protecting critical infrastructure from increasingly sophisticated threats.",
+    summary: "A sophisticated cyberattack on multiple energy companies has exposed critical vulnerabilities in national infrastructure systems, temporarily disrupting power grids in three states and prompting urgent calls for enhanced cybersecurity measures.",
     imageUrl: "https://images.pexels.com/photos/5380664/pexels-photo-5380664.jpeg"
   }
 ]
@@ -83,7 +83,7 @@ serve(async (req) => {
           Create a concise, informative summary (100-150 words) of this news article:
           
           Title: ${sampleArticle.title}
-          Content: ${sampleArticle.content}
+          Summary: ${sampleArticle.summary}
           
           The summary should capture the key facts, main implications, and significance of the story.
         `
@@ -108,7 +108,7 @@ serve(async (req) => {
           Analyze this news article for bias and sentiment. Respond in JSON format:
           
           Title: ${sampleArticle.title}
-          Content: ${sampleArticle.content}
+          Summary: ${sampleArticle.summary}
           
           {
             "biasScore": number between -1 and 1,
@@ -162,7 +162,6 @@ serve(async (req) => {
             .insert({
               title: sampleArticle.title,
               summary: aiSummary,
-              content: sampleArticle.content,
               category: sampleArticle.category,
               language: 'English',
               source: NEWS_SOURCES[Math.floor(Math.random() * NEWS_SOURCES.length)],
@@ -170,7 +169,8 @@ serve(async (req) => {
               image_url: sampleArticle.imageUrl,
               published_at: new Date(Date.now() - Math.random() * 7 * 24 * 60 * 60 * 1000).toISOString(),
               tags: analysis.tags,
-              reading_time: Math.ceil(sampleArticle.content.split(' ').length / 200)
+              reading_time: Math.ceil(sampleArticle.summary.split(' ').length / 50),
+              explanation_generated: false
             })
             .select()
             .single()
@@ -233,7 +233,7 @@ serve(async (req) => {
         `)
 
       if (query) {
-        searchQuery = searchQuery.textSearch('title,summary,content', query)
+        searchQuery = searchQuery.textSearch('title,summary', query)
       }
 
       if (category && category !== 'all') {
