@@ -32,7 +32,12 @@ serve(async (req) => {
 
     const geminiApiKey = Deno.env.get('GEMINI_API_KEY')
     if (!geminiApiKey) {
-      throw new Error('Gemini API key not found')
+      return new Response(JSON.stringify({ 
+        error: 'Gemini API key not configured. Please add GEMINI_API_KEY to your Supabase project environment variables.' 
+      }), {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      })
     }
 
     const { method } = req
@@ -109,7 +114,17 @@ serve(async (req) => {
         }
       )
 
+      if (!geminiResponse.ok) {
+        const errorText = await geminiResponse.text()
+        throw new Error(`Gemini API error: ${geminiResponse.status} - ${errorText}`)
+      }
+
       const geminiData = await geminiResponse.json()
+      
+      if (!geminiData.candidates || !geminiData.candidates[0]?.content?.parts[0]?.text) {
+        throw new Error('Invalid response from Gemini API')
+      }
+      
       const aiExplanation = geminiData.candidates[0]?.content?.parts[0]?.text || 
         "Unable to generate detailed explanation at this time. Please try again later."
 
