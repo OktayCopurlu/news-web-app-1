@@ -67,11 +67,15 @@ export const useArticles = () => {
   const getArticle = async (id: string): Promise<Article | null> => {
     try {
       const article = await newsApi.getArticle(id)
-      // Track view interaction
-      await userApi.trackInteraction(id, 'view')
+      // Track view interaction (don't let this fail the article fetch)
+      try {
+        await userApi.trackInteraction(id, 'view')
+      } catch (trackingError) {
+        console.warn('Failed to track interaction:', trackingError)
+      }
       return article
     } catch (err) {
-      console.error('Failed to fetch article:', err)
+      console.error('Error in getArticle:', err)
       return null
     }
   }
