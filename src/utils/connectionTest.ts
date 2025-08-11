@@ -29,26 +29,26 @@ export const testGeminiConnection = async () => {
   try {
     console.log('Testing Gemini API connection via Edge Function...')
     
-    const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/news-processor/test-gemini`, {
+    const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/news-aggregator/fetch-news`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`
       },
-      body: JSON.stringify({ test: true })
+      body: JSON.stringify({})
     })
     
     if (!response.ok) {
       const errorText = await response.text()
-      console.error('Gemini API test failed:', response.status, errorText)
+      console.error('Edge Function test failed:', response.status, errorText)
       return { connected: false, error: `HTTP ${response.status}: ${errorText}` }
     }
     
     const result = await response.json()
-    console.log('✅ Gemini API connection successful')
+    console.log('✅ Edge Function connection successful')
     return { connected: true, error: null, result }
   } catch (error) {
-    console.error('Gemini API connection error:', error)
+    console.error('Edge Function connection error:', error)
     return { connected: false, error: error instanceof Error ? error.message : 'Unknown error' }
   }
 }
