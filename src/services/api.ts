@@ -175,10 +175,10 @@ const getAuthHeaders = async () => {
     return { 'Content-Type': 'application/json' }
   }
   
-  const { data: { session } } = await supabase.auth.getSession()
+  // For public endpoints, don't require auth
   return {
     'Content-Type': 'application/json',
-    ...(session?.access_token && { 'Authorization': `Bearer ${session.access_token}` })
+    'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`
   }
 }
 
