@@ -139,7 +139,36 @@ const NewsDetailPage: React.FC = () => {
   };
 
   // Get quiz data with fallback
-  const quiz = article.quizzes?.[0];
+  const quiz = article.quizzes?.[0] || {
+    id: `quiz-${article.id}`,
+    questions: [
+      {
+        id: 'q1',
+        question: `What is the main topic of this ${article.category.toLowerCase()} article?`,
+        options: [
+          "The article's primary focus and key developments",
+          "Secondary background information",
+          "Unrelated current events",
+          "Historical context only"
+        ],
+        correctAnswer: 0,
+        explanation: "This question tests basic comprehension of the article's main theme and key points."
+      },
+      {
+        id: 'q2',
+        question: `According to the article, what makes this ${article.category.toLowerCase()} story significant?`,
+        options: [
+          "It's a routine update",
+          "It represents a major development with broader implications",
+          "It's only relevant to specialists",
+          "It's primarily historical information"
+        ],
+        correctAnswer: 1,
+        explanation: "The article highlights the significance and potential impact of this development."
+      }
+    ],
+    difficulty: "intermediate"
+  };
 
   // Get coverage comparison with fallback
   const coverageComparison = article.coverage_comparisons?.[0]?.comparisons || [

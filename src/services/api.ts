@@ -109,9 +109,23 @@ const FALLBACK_ARTICLES = [
         {
           id: 'q1',
           question: "What is the target for carbon emission reduction?",
-          options: ["40%", "50%", "60%", "70%"],
+          options: ["40% over the next decade", "50% over the next decade", "60% over the next decade", "70% over the next decade"],
           correctAnswer: 2,
           explanation: "The agreement aims to reduce global carbon emissions by 60% over the next decade."
+        },
+        {
+          id: 'q2',
+          question: "How much funding is allocated for clean energy infrastructure?",
+          options: ["$300 billion", "$400 billion", "$500 billion", "$600 billion"],
+          correctAnswer: 2,
+          explanation: "The accord includes a $500 billion fund for clean energy infrastructure development."
+        },
+        {
+          id: 'q3',
+          question: "What type of energy adoption does the agreement target?",
+          options: ["Nuclear energy", "Renewable energy", "Natural gas", "Coal with carbon capture"],
+          correctAnswer: 1,
+          explanation: "The agreement includes specific targets for renewable energy adoption like solar and wind power."
         }
       ],
       difficulty: "intermediate"
