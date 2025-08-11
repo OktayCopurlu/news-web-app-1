@@ -5,9 +5,9 @@ import { useNews } from '../contexts/NewsContext';
 
 const QuizPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
-  const { articles, quizzes } = useNews();
-  const [article, setArticle] = useState(articles.find(a => a.id === id));
-  const [quiz, setQuiz] = useState(quizzes.find(q => q.articleId === id));
+  const { articles } = useNews();
+  const [article, setArticle] = useState(null);
+  const [quiz, setQuiz] = useState(null);
   const [currentQuestion, setCurrentQuestion] = useState(0);
   const [answers, setAnswers] = useState<number[]>([]);
   const [showResults, setShowResults] = useState(false);
@@ -17,11 +17,12 @@ const QuizPage: React.FC = () => {
   useEffect(() => {
     if (id) {
       const foundArticle = articles.find(a => a.id === id);
-      const foundQuiz = quizzes.find(q => q.articleId === id);
       setArticle(foundArticle);
-      setQuiz(foundQuiz);
+      if (foundArticle && foundArticle.quizzes && foundArticle.quizzes.length > 0) {
+        setQuiz(foundArticle.quizzes[0]);
+      }
     }
-  }, [id, articles, quizzes]);
+  }, [id, articles]);
 
   if (!article || !quiz) {
     return (
