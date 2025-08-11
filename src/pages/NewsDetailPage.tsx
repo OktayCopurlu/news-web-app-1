@@ -24,6 +24,7 @@ const NewsDetailPage: React.FC = () => {
   const [generatingELI5, setGeneratingELI5] = useState(false);
   const [generatingQuiz, setGeneratingQuiz] = useState(false);
   const [generatingCoverage, setGeneratingCoverage] = useState(false);
+  const [autoGeneratingExplanation, setAutoGeneratingExplanation] = useState(false);
 
   useEffect(() => {
     const fetchArticle = async () => {
@@ -50,7 +51,7 @@ const NewsDetailPage: React.FC = () => {
     const autoGenerateExplanation = async () => {
       if (article && !article.ai_explanation && !article.explanation_generated) {
         try {
-          setGeneratingExplanation(true);
+          setAutoGeneratingExplanation(true);
           const response = await newsApi.generateExplanation(article.id);
           setArticle(prev => ({
             ...prev,
@@ -60,7 +61,7 @@ const NewsDetailPage: React.FC = () => {
         } catch (err) {
           console.error('Failed to auto-generate explanation:', err);
         } finally {
-          setGeneratingExplanation(false);
+          setAutoGeneratingExplanation(false);
         }
       }
     };
