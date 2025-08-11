@@ -40,10 +40,12 @@ serve(async (req) => {
     const path = url.pathname.replace('/functions/v1/news-processor', '') || '/'
     
     console.log(`Processing request: ${method} ${path}`)
+    console.log(`Full URL: ${req.url}`)
+    console.log(`Pathname: ${url.pathname}`)
 
     // POST /test-gemini - Test Gemini API connection
     if (method === 'POST' && path === '/test-gemini') {
-      console.log('Testing Gemini API connection...')
+      console.log('✅ Matched /test-gemini route')
       
       if (!geminiApiKey) {
         console.error('GEMINI_API_KEY not found in environment variables')
