@@ -1,65 +1,42 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
-
-export interface User {
-  id: string;
-  name: string;
-  email: string;
-  preferences: {
-    topics: string[];
-    languages: string[];
-    readingLevel: 'beginner' | 'intermediate' | 'advanced';
-    audioPreferences: boolean;
-    biasAnalysis: boolean;
-  };
-  onboardingComplete: boolean;
-}
+import React, { createContext, useContext, useEffect } from 'react'
+import { useAuth, type UserProfile } from '../hooks/useAuth'
 
 interface UserContextType {
-  user: User | null;
-  setUser: (user: User | null) => void;
-  updatePreferences: (preferences: Partial<User['preferences']>) => void;
+  user: UserProfile | null
+  loading: boolean
+  signUp: (email: string, password: string, name: string, preferences: any) => Promise<{ user: any; error: string | null }>
+  signIn: (email: string, password: string) => Promise<{ user: any; error: string | null }>
+  signOut: () => Promise<void>
+  updatePreferences: (preferences: Partial<UserProfile['preferences']>) => Promise<{ error: string | null }>
 }
 
-const UserContext = createContext<UserContextType | undefined>(undefined);
+const UserContext = createContext<UserContextType | undefined>(undefined)
 
 export const useUser = () => {
-  const context = useContext(UserContext);
+  const context = useContext(UserContext)
   if (!context) {
-    throw new Error('useUser must be used within a UserProvider');
+    throw new Error('useUser must be used within a UserProvider')
   }
-  return context;
-};
+  return context
+}
 
 interface UserProviderProps {
-  children: React.ReactNode;
+  children: React.ReactNode
 }
 
 export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
-  const [user, setUser] = useState<User | null>(() => {
-    const stored = localStorage.getItem('user');
-    return stored ? JSON.parse(stored) : null;
-  });
-
-  useEffect(() => {
-    if (user) {
-      localStorage.setItem('user', JSON.stringify(user));
-    } else {
-      localStorage.removeItem('user');
-    }
-  }, [user]);
-
-  const updatePreferences = (preferences: Partial<User['preferences']>) => {
-    if (user) {
-      setUser({
-        ...user,
-        preferences: { ...user.preferences, ...preferences }
-      });
-    }
-  };
+  const { user: authUser, profile, loading, signUp, signIn, signOut, updatePreferences } = useAuth()
 
   return (
-    <UserContext.Provider value={{ user, setUser, updatePreferences }}>
+    <UserContext.Provider value={{
+      user: profile,
+      loading,
+      signUp,
+      signIn,
+      signOut,
+      updatePreferences
+    }}>
       {children}
     </UserContext.Provider>
-  );
-};
+  )
+}

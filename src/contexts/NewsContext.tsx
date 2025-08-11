@@ -1,112 +1,137 @@
-import React, { createContext, useContext, useState } from 'react';
-import { mockNewsData } from '../data/mockNews';
-
-export interface NewsArticle {
-  id: string;
-  title: string;
-  summary: string;
-  content: string;
-  category: string;
-  language: string;
-  source: string;
-  sourceUrl: string;
-  imageUrl: string;
-  publishedAt: string;
-  readingTime: number;
-  bias: {
-    score: number;
-    explanation: string;
-    sources: string[];
-  };
-  sentiment: {
-    score: number;
-    label: 'positive' | 'neutral' | 'negative';
-  };
-  coverageComparison?: {
-    source: string;
-    perspective: string;
-    bias: number;
-  }[];
-  eli5Summary?: string;
-  audioSummary?: {
-    url: string;
-    duration: number;
-  };
-  relatedArticles: string[];
-  tags: string[];
-}
+import React, { createContext, useContext, useState, useEffect } from 'react'
+import { useArticles, type Article } from '../hooks/useArticles'
+import { aiApi, quizApi, coverageApi, userApi } from '../services/api'
 
 export interface NewsQuiz {
-  id: string;
-  articleId: string;
-  questions: {
-    id: string;
-    question: string;
-    options: string[];
-    correctAnswer: number;
-    explanation: string;
-  }[];
+  id: string
+  articleId: string
+  questions: Array<{
+    id: string
+    question: string
+    options: string[]
+    correctAnswer: number
+    explanation: string
+  }>
+  difficulty: string
+}
+
+export interface CoverageComparison {
+  source: string
+  perspective: string
+  bias: number
 }
 
 interface NewsContextType {
-  articles: NewsArticle[];
-  quizzes: NewsQuiz[];
-  selectedArticle: NewsArticle | null;
-  setSelectedArticle: (article: NewsArticle | null) => void;
-  getArticleById: (id: string) => NewsArticle | undefined;
-  getArticlesByCategory: (category: string) => NewsArticle[];
-  searchArticles: (query: string) => NewsArticle[];
+  articles: Article[]
+  loading: boolean
+  error: string | null
+  selectedArticle: Article | null
+  setSelectedArticle: (article: Article | null) => void
+  getArticleById: (id: string) => Promise<Article | null>
+  searchArticles: (query: string, filters?: any) => Promise<void>
+  sendChatMessage: (articleId: string, message: string, history: any[]) => Promise<string>
+  generateQuiz: (articleId: string) => Promise<NewsQuiz>
+  getCoverageComparison: (articleId: string) => Promise<CoverageComparison[]>
+  initializeData: () => Promise<void>
+  trackInteraction: (articleId: string, type: string, metadata?: any) => Promise<void>
 }
 
-const NewsContext = createContext<NewsContextType | undefined>(undefined);
+const NewsContext = createContext<NewsContextType | undefined>(undefined)
 
 export const useNews = () => {
-  const context = useContext(NewsContext);
+  const context = useContext(NewsContext)
   if (!context) {
-    throw new Error('useNews must be used within a NewsProvider');
+    throw new Error('useNews must be used within a NewsProvider')
   }
-  return context;
-};
+  return context
+}
 
 interface NewsProviderProps {
-  children: React.ReactNode;
+  children: React.ReactNode
 }
 
 export const NewsProvider: React.FC<NewsProviderProps> = ({ children }) => {
-  const [articles] = useState<NewsArticle[]>(mockNewsData.articles);
-  const [quizzes] = useState<NewsQuiz[]>(mockNewsData.quizzes);
-  const [selectedArticle, setSelectedArticle] = useState<NewsArticle | null>(null);
+  const { articles, loading, error, getArticle, searchArticles: searchArticlesApi, initializeWithSampleData } = useArticles()
+  const [selectedArticle, setSelectedArticle] = useState<Article | null>(null)
 
-  const getArticleById = (id: string) => {
-    return articles.find(article => article.id === id);
-  };
+  const getArticleById = async (id: string): Promise<Article | null> => {
+    try {
+      const article = await getArticle(id)
+      if (article) {
+        setSelectedArticle(article)
+      }
+      return article
+    } catch (error) {
+      console.error('Failed to get article:', error)
+      return null
+    }
+  }
 
-  const getArticlesByCategory = (category: string) => {
-    return articles.filter(article => 
-      article.category.toLowerCase() === category.toLowerCase()
-    );
-  };
+  const searchArticles = async (query: string, filters: any = {}) => {
+    await searchArticlesApi(query, filters)
+  }
 
-  const searchArticles = (query: string) => {
-    const lowercaseQuery = query.toLowerCase();
-    return articles.filter(article =>
-      article.title.toLowerCase().includes(lowercaseQuery) ||
-      article.summary.toLowerCase().includes(lowercaseQuery) ||
-      article.tags.some(tag => tag.toLowerCase().includes(lowercaseQuery))
-    );
-  };
+  const sendChatMessage = async (articleId: string, message: string, history: any[] = []): Promise<string> => {
+    try {
+      const response = await aiApi.sendMessage(articleId, message, history)
+      return response.response
+    } catch (error) {
+      console.error('Failed to send chat message:', error)
+      return "I'm sorry, I'm having trouble responding right now. Please try again later."
+    }
+  }
+
+  const generateQuiz = async (articleId: string): Promise<NewsQuiz> => {
+    try {
+      return await quizApi.generateQuiz(articleId)
+    } catch (error) {
+      console.error('Failed to generate quiz:', error)
+      throw error
+    }
+  }
+
+  const getCoverageComparison = async (articleId: string): Promise<CoverageComparison[]> => {
+    try {
+      const response = await coverageApi.analyzeCoverage(articleId)
+      return response.comparisons || []
+    } catch (error) {
+      console.error('Failed to get coverage comparison:', error)
+      return []
+    }
+  }
+
+  const initializeData = async () => {
+    try {
+      await initializeWithSampleData()
+    } catch (error) {
+      console.error('Failed to initialize data:', error)
+    }
+  }
+
+  const trackInteraction = async (articleId: string, type: string, metadata: any = {}) => {
+    try {
+      await userApi.trackInteraction(articleId, type, metadata)
+    } catch (error) {
+      console.error('Failed to track interaction:', error)
+    }
+  }
 
   return (
     <NewsContext.Provider value={{
       articles,
-      quizzes,
+      loading,
+      error,
       selectedArticle,
       setSelectedArticle,
       getArticleById,
-      getArticlesByCategory,
-      searchArticles
+      searchArticles,
+      sendChatMessage,
+      generateQuiz,
+      getCoverageComparison,
+      initializeData,
+      trackInteraction
     }}>
       {children}
     </NewsContext.Provider>
-  );
-};
+  )
+}
