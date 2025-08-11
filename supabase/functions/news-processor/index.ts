@@ -32,6 +32,7 @@ serve(async (req) => {
 
     const geminiApiKey = Deno.env.get('GEMINI_API_KEY')
     if (!geminiApiKey) {
+      console.error('GEMINI_API_KEY not found in environment variables')
       return new Response(JSON.stringify({ 
         error: 'Gemini API key not configured. Please add GEMINI_API_KEY to your Supabase project environment variables.' 
       }), {

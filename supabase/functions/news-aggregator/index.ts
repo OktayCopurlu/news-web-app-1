@@ -66,7 +66,14 @@ serve(async (req) => {
 
     const geminiApiKey = Deno.env.get('GEMINI_API_KEY')
     if (!geminiApiKey) {
-      throw new Error('Gemini API key not found')
+      console.error('GEMINI_API_KEY not found in environment variables')
+      return new Response(JSON.stringify({ 
+        error: 'Gemini API key not configured in Supabase Edge Function secrets',
+        configured: false 
+      }), {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      })
     }
 
     const { method } = req
