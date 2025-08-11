@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { Clock, Share2, Bookmark, MessageCircle, Play, Pause, BarChart3, Eye, Brain, ArrowLeft } from 'lucide-react';
-import { useNews } from '../contexts/NewsContext';
+import { useArticles } from '../hooks/useArticles';
 import { useUser } from '../contexts/UserContext';
 import BiasIndicator from '../components/BiasIndicator';
 import CoverageComparison from '../components/CoverageComparison';
@@ -10,30 +10,56 @@ import AudioPlayer from '../components/AudioPlayer';
 
 const NewsDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
-  const { getArticleById } = useNews();
+  const { getArticle } = useArticles();
   const { user } = useUser();
-  const [article, setArticle] = useState(getArticleById(id!));
+  const [article, setArticle] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [showELI5, setShowELI5] = useState(false);
   const [showCoverage, setShowCoverage] = useState(false);
   const [showChat, setShowChat] = useState(false);
   const [isBookmarked, setIsBookmarked] = useState(false);
 
   useEffect(() => {
-    if (id) {
-      const foundArticle = getArticleById(id);
-      setArticle(foundArticle);
-    }
-  }, [id, getArticleById]);
+    const fetchArticle = async () => {
+      if (!id) return;
+      
+      try {
+        setLoading(true);
+        setError(null);
+        const foundArticle = await getArticle(id);
+        setArticle(foundArticle);
+      } catch (err) {
+        setError('Failed to load article');
+        console.error('Error fetching article:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
 
-  if (!article) {
+    fetchArticle();
+  }, [id, getArticle]);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600 dark:text-gray-400">Loading article...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error || !article) {
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
         <div className="text-center">
           <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">
-            Article Not Found
+            {error || 'Article Not Found'}
           </h2>
           <p className="text-gray-600 dark:text-gray-400 mb-6">
-            The article you're looking for doesn't exist or has been removed.
+            {error || "The article you're looking for doesn't exist or has been removed."}
           </p>
           <Link
             to="/"
@@ -44,7 +70,8 @@ const NewsDetailPage: React.FC = () => {
         </div>
       </div>
     );
-  }
+    }
+
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {
@@ -55,6 +82,21 @@ const NewsDetailPage: React.FC = () => {
       minute: '2-digit'
     });
   };
+
+  // Get analytics data with fallback
+  const analytics = article.article_analytics?.[0] || {
+    bias_score: 0,
+    bias_explanation: 'No bias analysis available',
+    bias_sources: [],
+    sentiment_score: 0,
+    sentiment_label: 'neutral'
+  };
+
+  // Get quiz data with fallback
+  const quiz = article.quizzes?.[0];
+
+  // Get coverage comparison with fallback
+  const coverageComparison = article.coverage_comparisons?.[0]?.comparisons || [];
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
@@ -73,7 +115,7 @@ const NewsDetailPage: React.FC = () => {
           {/* Hero Image */}
           <div className="relative h-64 sm:h-80">
             <img
-              src={article.imageUrl}
+              src={article.image_url}
               alt={article.title}
               className="w-full h-full object-cover"
             />
@@ -97,15 +139,15 @@ const NewsDetailPage: React.FC = () => {
               <div className="flex items-center space-x-4 text-sm text-gray-600 dark:text-gray-400">
                 <span className="flex items-center space-x-1">
                   <Clock className="w-4 h-4" />
-                  <span>{article.readingTime} min read</span>
+                  <span>{article.reading_time} min read</span>
                 </span>
                 <span>By {article.source}</span>
               </div>
               
               <div className="flex items-center space-x-2">
                 {/* Audio Player */}
-                {article.audioSummary && user?.preferences.audioPreferences && (
-                  <AudioPlayer audioUrl={article.audioSummary.url} duration={article.audioSummary.duration} />
+                    +{article.tags.length - 3} more
+                  <AudioPlayer audioUrl={article.audio_summary_url} duration={article.audio_duration} />
                 )}
                 
                 <button
@@ -128,7 +170,18 @@ const NewsDetailPage: React.FC = () => {
             {/* Bias Analysis */}
             {user?.preferences.biasAnalysis && (
               <div className="mb-6">
-                <BiasIndicator article={article} />
+                <BiasIndicator article={{
+                  ...article,
+                  bias: {
+                    score: analytics.bias_score,
+                    explanation: analytics.bias_explanation,
+                    sources: analytics.bias_sources
+                  },
+                  sentiment: {
+                    score: analytics.sentiment_score,
+                    label: analytics.sentiment_label
+                  }
+                }} />
               </div>
             )}
 
@@ -144,7 +197,7 @@ const NewsDetailPage: React.FC = () => {
 
             {/* Action Buttons */}
             <div className="flex flex-wrap gap-3 mb-8">
-              {article.eli5Summary && (
+              {article.eli5_summary && (
                 <button
                   onClick={() => setShowELI5(!showELI5)}
                   className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-colors ${
@@ -158,7 +211,7 @@ const NewsDetailPage: React.FC = () => {
                 </button>
               )}
               
-              {article.coverageComparison && (
+              {coverageComparison.length > 0 && (
                 <button
                   onClick={() => setShowCoverage(!showCoverage)}
                   className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-colors ${
@@ -186,7 +239,11 @@ const NewsDetailPage: React.FC = () => {
               
               <Link
                 to={`/quiz/${article.id}`}
-                className="flex items-center space-x-2 px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-green-50 dark:hover:bg-green-900/10 transition-colors"
+                className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-colors ${
+                  quiz 
+                    ? 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-green-50 dark:hover:bg-green-900/10'
+                    : 'bg-gray-200 dark:bg-gray-600 text-gray-500 dark:text-gray-400 cursor-not-allowed'
+                }`}
               >
                 <Eye className="w-4 h-4" />
                 <span>Test Knowledge</span>
@@ -194,29 +251,41 @@ const NewsDetailPage: React.FC = () => {
             </div>
 
             {/* ELI5 Summary */}
-            {showELI5 && article.eli5Summary && (
+            {showELI5 && article.eli5_summary && (
               <div className="mb-8 p-4 bg-purple-50 dark:bg-purple-900/20 rounded-lg border border-purple-200 dark:border-purple-800">
                 <h3 className="font-semibold text-purple-800 dark:text-purple-300 mb-2 flex items-center space-x-2">
                   <Brain className="w-4 h-4" />
                   <span>Explain Like I'm 5</span>
                 </h3>
                 <p className="text-purple-700 dark:text-purple-300">
-                  {article.eli5Summary}
+                  {article.eli5_summary}
                 </p>
               </div>
             )}
 
             {/* Coverage Comparison */}
-            {showCoverage && article.coverageComparison && (
+            {showCoverage && coverageComparison.length > 0 && (
               <div className="mb-8">
-                <CoverageComparison comparisons={article.coverageComparison} />
+                <CoverageComparison comparisons={coverageComparison} />
               </div>
             )}
 
             {/* AI Chat */}
             {showChat && (
               <div className="mb-8">
-                <AIChat article={article} />
+                <AIChat article={{
+                  ...article,
+                  bias: {
+                    score: analytics.bias_score,
+                    explanation: analytics.bias_explanation,
+                    sources: analytics.bias_sources
+                  },
+                  sentiment: {
+                    score: analytics.sentiment_score,
+                    label: analytics.sentiment_label
+                  },
+                  coverageComparison: coverageComparison
+                }} />
               </div>
             )}
 
@@ -234,7 +303,7 @@ const NewsDetailPage: React.FC = () => {
             <div className="mt-8 pt-6 border-t border-gray-200 dark:border-gray-700">
               <h3 className="text-sm font-medium text-gray-900 dark:text-white mb-3">Tags</h3>
               <div className="flex flex-wrap gap-2">
-                {article.tags.map((tag) => (
+                {article.tags?.map((tag) => (
                   <span
                     key={tag}
                     className="px-3 py-1 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-full text-sm"
@@ -242,7 +311,7 @@ const NewsDetailPage: React.FC = () => {
                     {tag}
                   </span>
                 ))}
-              </div>
+                {article.tags && article.tags.length > 3 && (
             </div>
           </div>
         </article>
