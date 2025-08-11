@@ -21,7 +21,9 @@ const NewsDetailPage: React.FC = () => {
   const [showCoverage, setShowCoverage] = useState(false);
   const [showChat, setShowChat] = useState(false);
   const [isBookmarked, setIsBookmarked] = useState(false);
-  const [autoGeneratingExplanation, setAutoGeneratingExplanation] = useState(false);
+  const [generatingELI5, setGeneratingELI5] = useState(false);
+  const [generatingQuiz, setGeneratingQuiz] = useState(false);
+  const [generatingCoverage, setGeneratingCoverage] = useState(false);
 
   useEffect(() => {
     const fetchArticle = async () => {
@@ -46,8 +48,7 @@ const NewsDetailPage: React.FC = () => {
   // Auto-generate explanation when article loads
   useEffect(() => {
     const autoGenerateExplanation = async () => {
-      if (article && !article.ai_explanation && !article.explanation_generated && !autoGeneratingExplanation) {
-        setAutoGeneratingExplanation(true);
+      if (article && !article.ai_explanation && !article.explanation_generated) {
         try {
           const response = await newsApi.generateExplanation(article.id);
           setArticle(prev => ({
@@ -57,8 +58,6 @@ const NewsDetailPage: React.FC = () => {
           }));
         } catch (err) {
           console.error('Failed to auto-generate explanation:', err);
-        } finally {
-          setAutoGeneratingExplanation(false);
         }
       }
     };
@@ -83,6 +82,110 @@ const NewsDetailPage: React.FC = () => {
       setError('Failed to generate AI explanation. Please check if the AI service is properly configured.');
     } finally {
       setGeneratingExplanation(false);
+    }
+  };
+
+  const handleELI5Click = async () => {
+    if (!article) return;
+    
+    if (article.eli5_summary) {
+      setShowELI5(!showELI5);
+    } else {
+      // Generate ELI5 summary using AI
+      setGeneratingELI5(true);
+      try {
+        const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/news-processor/articles/${article.id}/eli5`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`
+          }
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          setArticle(prev => ({
+            ...prev,
+            eli5_summary: data.eli5_summary
+          }));
+          setShowELI5(true);
+        }
+      } catch (err) {
+        console.error('Failed to generate ELI5 summary:', err);
+      } finally {
+        setGeneratingELI5(false);
+      }
+    }
+  };
+
+  const handleQuizClick = async () => {
+    if (!article) return;
+    
+    const quiz = article.quizzes?.[0];
+    if (quiz) {
+      // Navigate to existing quiz
+      navigate(`/quiz/${article.id}`);
+    } else {
+      // Generate quiz using AI
+      setGeneratingQuiz(true);
+      try {
+        const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/quiz-generator/generate`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`
+          },
+          body: JSON.stringify({ articleId: article.id })
+        });
+        
+        if (response.ok) {
+          const quizData = await response.json();
+          setArticle(prev => ({
+            ...prev,
+            quizzes: [quizData]
+          }));
+          navigate(`/quiz/${article.id}`);
+        }
+      } catch (err) {
+        console.error('Failed to generate quiz:', err);
+      } finally {
+        setGeneratingQuiz(false);
+      }
+    }
+  };
+
+  const handleCoverageClick = async () => {
+    if (!article) return;
+    
+    const coverage = article.coverage_comparisons?.[0]?.comparisons;
+    if (coverage && coverage.length > 0) {
+      setShowCoverage(!showCoverage);
+    } else {
+      // Generate coverage comparison using AI
+      setGeneratingCoverage(true);
+      try {
+        const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/coverage-analyzer/analyze`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`
+          },
+          body: JSON.stringify({ articleId: article.id })
+        });
+        
+        if (response.ok) {
+          const coverageData = await response.json();
+          setArticle(prev => ({
+            ...prev,
+            coverage_comparisons: [coverageData]
+          }));
+          setShowCoverage(true);
+        }
+      } catch (err) {
+        console.error('Failed to generate coverage comparison:', err);
+      } finally {
+        setGeneratingCoverage(false);
+      }
     }
   };
 
@@ -233,19 +336,22 @@ const NewsDetailPage: React.FC = () => {
 
             {/* Action Buttons */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
-              {article.eli5_summary && (
-                <button
-                  onClick={() => setShowELI5(!showELI5)}
-                  className={`flex items-center justify-center space-x-2 px-6 py-3 rounded-lg transition-colors font-medium ${
-                    showELI5
-                      ? 'bg-purple-600 text-white'
-                      : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-purple-50 dark:hover:bg-purple-900/10 hover:text-purple-600 dark:hover:text-purple-400'
-                  }`}
-                >
+              <button
+                onClick={handleELI5Click}
+                disabled={generatingELI5}
+                className={`flex items-center justify-center space-x-2 px-6 py-3 rounded-lg transition-colors font-medium ${
+                  showELI5
+                    ? 'bg-purple-600 text-white'
+                    : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-purple-50 dark:hover:bg-purple-900/10 hover:text-purple-600 dark:hover:text-purple-400'
+                } ${generatingELI5 ? 'opacity-50 cursor-not-allowed' : ''}`}
+              >
+                {generatingELI5 ? (
+                  <Loader className="w-4 h-4 animate-spin" />
+                ) : (
                   <Brain className="w-4 h-4" />
-                  <span>Explain Like I'm 5</span>
-                </button>
-              )}
+                )}
+                <span>{generatingELI5 ? 'Generating...' : 'Explain Like I\'m 5'}</span>
+              </button>
               
               <button
                 onClick={() => setShowChat(!showChat)}
@@ -259,43 +365,51 @@ const NewsDetailPage: React.FC = () => {
                 <span>Ask AI More</span>
               </button>
               
-              <Link
-                to={`/quiz/${article.id}`}
+              <button
+                onClick={handleQuizClick}
+                disabled={generatingQuiz}
                 className={`flex items-center justify-center space-x-2 px-6 py-3 rounded-lg transition-colors font-medium ${
-                  quiz 
-                    ? 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-green-50 dark:hover:bg-green-900/10 hover:text-green-600 dark:hover:text-green-400'
-                    : 'bg-gray-200 dark:bg-gray-600 text-gray-500 dark:text-gray-400 cursor-not-allowed opacity-50'
-                }`}
+                  'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-green-50 dark:hover:bg-green-900/10 hover:text-green-600 dark:hover:text-green-400'
+                } ${generatingQuiz ? 'opacity-50 cursor-not-allowed' : ''}`}
               >
-                <Eye className="w-4 h-4" />
-                <span>Test Knowledge</span>
-              </Link>
+                {generatingQuiz ? (
+                  <Loader className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Eye className="w-4 h-4" />
+                )}
+                <span>{generatingQuiz ? 'Generating...' : 'Test Knowledge'}</span>
+              </button>
             </div>
 
             {/* Coverage Comparison Button - Separate row */}
             <div className="mb-8">
               <button
-                onClick={() => setShowCoverage(!showCoverage)}
+                onClick={handleCoverageClick}
+                disabled={generatingCoverage}
                 className={`flex items-center justify-center space-x-2 px-6 py-3 rounded-lg transition-colors font-medium w-full sm:w-auto ${
                   showCoverage
                     ? 'bg-orange-600 text-white'
                     : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-orange-50 dark:hover:bg-orange-900/10 hover:text-orange-600 dark:hover:text-orange-400'
-                }`}
+                } ${generatingCoverage ? 'opacity-50 cursor-not-allowed' : ''}`}
               >
-                <BarChart3 className="w-4 h-4" />
-                <span>Compare Coverage</span>
+                {generatingCoverage ? (
+                  <Loader className="w-4 h-4 animate-spin" />
+                ) : (
+                  <BarChart3 className="w-4 h-4" />
+                )}
+                <span>{generatingCoverage ? 'Generating...' : 'Compare Coverage'}</span>
               </button>
             </div>
 
             {/* ELI5 Summary */}
-            {showELI5 && article.eli5_summary && (
+            {showELI5 && (
               <div className="mb-8 p-4 bg-purple-50 dark:bg-purple-900/20 rounded-lg border border-purple-200 dark:border-purple-800">
                 <h3 className="font-semibold text-purple-800 dark:text-purple-300 mb-2 flex items-center space-x-2">
                   <Brain className="w-4 h-4" />
                   <span>Explain Like I'm 5</span>
                 </h3>
                 <p className="text-purple-700 dark:text-purple-300">
-                  {article.eli5_summary}
+                  {article.eli5_summary || 'Generating simple explanation...'}
                 </p>
               </div>
             )}

@@ -89,7 +89,7 @@ const NewsCard: React.FC<NewsCardProps> = ({ article, featured = false }) => {
           </h2>
 
           {/* Summary */}
-          <p className="text-gray-600 dark:text-gray-400 text-sm line-clamp-3 mb-3">
+          <p className="text-gray-600 dark:text-gray-400 text-sm mb-3">
             {article.summary}
           </p>
 
