@@ -140,16 +140,19 @@ const isSupabaseConfigured = () => {
   const url = import.meta.env.VITE_SUPABASE_URL
   const key = import.meta.env.VITE_SUPABASE_ANON_KEY
   
-  // Check if environment variables exist and are not placeholder values
+  console.log('Checking Supabase configuration...')
+  console.log('URL exists:', !!url)
+  console.log('Key exists:', !!key)
+  
   if (!url || !key) {
     console.log('Supabase not configured: Missing environment variables')
     return false
   }
-  if (url === 'https://your-project-ref.supabase.co' || url.includes('placeholder')) {
+  if (url.includes('your-project-ref') || url.includes('placeholder')) {
     console.log('Supabase not configured: Placeholder URL detected')
     return false
   }
-  if (key === 'your-anon-key-here' || key.includes('placeholder')) {
+  if (key.includes('your-anon-key') || key.includes('placeholder')) {
     console.log('Supabase not configured: Placeholder key detected')
     return false
   }
