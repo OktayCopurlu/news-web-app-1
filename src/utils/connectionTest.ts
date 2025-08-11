@@ -29,7 +29,7 @@ export const testGeminiConnection = async () => {
   try {
     console.log('Testing Gemini API connection via news-processor Edge Function...')
     
-    const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/test-gemini`, {
+    const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/news-processor/test-gemini`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

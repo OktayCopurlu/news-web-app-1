@@ -192,7 +192,7 @@ export const newsApi = {
     
     try {
       const headers = await getAuthHeaders()
-      const response = await fetch(`${API_BASE}/articles`, { headers })
+      const response = await fetch(`${API_BASE}/news-processor/articles`, { headers })
       if (!response.ok) throw new Error('Failed to fetch articles')
       return response.json()
     } catch (error) {
@@ -210,7 +210,7 @@ export const newsApi = {
     
     try {
       const headers = await getAuthHeaders()
-      const response = await fetch(`${API_BASE}/articles/${id}`, { headers })
+      const response = await fetch(`${API_BASE}/news-processor/articles/${id}`, { headers })
       if (!response.ok) throw new Error('Failed to fetch article')
       return response.json()
     } catch (error) {
@@ -252,7 +252,7 @@ Keep an eye on related stories about ${article.tags.slice(2, 4).join(', ')} as t
     
     try {
       const headers = await getAuthHeaders()
-      const response = await fetch(`${API_BASE}/articles/${id}/explanation`, {
+      const response = await fetch(`${API_BASE}/news-processor/articles/${id}/explanation`, {
         method: 'POST',
         headers
       })
@@ -289,7 +289,7 @@ ${article.summary}
     }
     
     const headers = await getAuthHeaders()
-    const response = await fetch(`${API_BASE}/articles`, {
+    const response = await fetch(`${API_BASE}/news-processor/articles`, {
       method: 'POST',
       headers,
       body: JSON.stringify(articleData)
