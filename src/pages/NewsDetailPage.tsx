@@ -359,7 +359,6 @@ const NewsDetailPage: React.FC = () => {
                 </div>
               )}
               </div>
-            </div>
 
             {/* Tags */}
             <div className="mt-8 pt-6 border-t border-gray-200 dark:border-gray-700">
