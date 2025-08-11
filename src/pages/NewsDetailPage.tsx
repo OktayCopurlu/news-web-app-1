@@ -50,6 +50,7 @@ const NewsDetailPage: React.FC = () => {
     const autoGenerateExplanation = async () => {
       if (article && !article.ai_explanation && !article.explanation_generated) {
         try {
+          setGeneratingExplanation(true);
           const response = await newsApi.generateExplanation(article.id);
           setArticle(prev => ({
             ...prev,
@@ -58,6 +59,8 @@ const NewsDetailPage: React.FC = () => {
           }));
         } catch (err) {
           console.error('Failed to auto-generate explanation:', err);
+        } finally {
+          setGeneratingExplanation(false);
         }
       }
     };
@@ -447,7 +450,7 @@ const NewsDetailPage: React.FC = () => {
               </h2>
               
               {article.ai_explanation || autoGeneratingExplanation ? (
-                autoGeneratingExplanation && !article.ai_explanation ? (
+                generatingExplanation && !article.ai_explanation ? (
                   <div className="text-center py-8 bg-gray-50 dark:bg-gray-700 rounded-lg">
                     <Loader className="w-8 h-8 animate-spin text-blue-600 mx-auto mb-4" />
                     <p className="text-gray-600 dark:text-gray-400">
