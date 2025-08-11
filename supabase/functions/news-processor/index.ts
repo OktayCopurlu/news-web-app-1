@@ -39,7 +39,7 @@ serve(async (req) => {
     
     // Remove the function prefix to get the actual path
     const originalPath = url.pathname
-    let path = originalPath.replace('/functions/v1/news-processor', '')
+    let path = originalPath.replace('/functions/v1/news-processor', '').replace('/news-processor', '')
     if (path === '') path = '/'
     
     console.log(`Processing request: ${method}`)
