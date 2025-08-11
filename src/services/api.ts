@@ -139,7 +139,7 @@ const API_BASE = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1`
 const isSupabaseConfigured = () => {
   const url = import.meta.env.VITE_SUPABASE_URL
   const key = import.meta.env.VITE_SUPABASE_ANON_KEY
-  return url && key && url !== 'https://placeholder.supabase.co' && !key.includes('placeholder')
+  return url && key && url !== 'https://your-project-ref.supabase.co' && key !== 'your-anon-key-here' && !key.includes('placeholder')
 }
 
 // Helper function to get auth headers
