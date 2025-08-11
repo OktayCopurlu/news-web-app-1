@@ -229,21 +229,32 @@ export const newsApi = {
 export const aiApi = {
   // Send chat message
   sendMessage: async (articleId: string, message: string, chatHistory: any[] = []) => {
-    const headers = await getAuthHeaders()
-    const { data: { user } } = await supabase.auth.getUser()
-    
-    const response = await fetch(`${API_BASE}/ai-chat/chat`, {
-      method: 'POST',
-      headers,
-      body: JSON.stringify({
-        articleId,
-        message,
-        chatHistory,
-        userId: user?.id
+    try {
+      const headers = await getAuthHeaders()
+      const { data: { user } } = await supabase.auth.getUser()
+      
+      const response = await fetch(`${API_BASE}/ai-chat/chat`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          articleId,
+          message,
+          chatHistory,
+          userId: user?.id
+        })
       })
-    })
-    if (!response.ok) throw new Error('Failed to send message')
-    return response.json()
+      
+      if (!response.ok) {
+        const errorText = await response.text()
+        console.error('AI Chat API Error:', response.status, errorText)
+        throw new Error(`AI Chat API Error: ${response.status} - ${errorText}`)
+      }
+      
+      return response.json()
+    } catch (error) {
+      console.error('AI Chat Error:', error)
+      throw error
+    }
   },
 
   // Get chat history
