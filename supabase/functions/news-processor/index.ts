@@ -44,6 +44,62 @@ serve(async (req) => {
     const url = new URL(req.url)
     const path = url.pathname.replace('/functions/v1/news-processor', '')
 
+    // POST /test-gemini - Test Gemini API connection
+    if (method === 'POST' && path === '/test-gemini') {
+      if (!geminiApiKey) {
+        return new Response(JSON.stringify({ 
+          error: 'Gemini API key not configured',
+          configured: false 
+        }), {
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        })
+      }
+
+      try {
+        const testResponse = await fetch(
+          `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${geminiApiKey}`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              contents: [{ parts: [{ text: 'Hello, this is a test. Please respond with "Test successful".' }] }]
+            })
+          }
+        )
+
+        if (!testResponse.ok) {
+          const errorText = await testResponse.text()
+          return new Response(JSON.stringify({ 
+            error: `Gemini API error: ${testResponse.status} - ${errorText}`,
+            configured: false 
+          }), {
+            status: 500,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          })
+        }
+
+        const testData = await testResponse.json()
+        const response = testData.candidates[0]?.content?.parts[0]?.text || 'No response'
+
+        return new Response(JSON.stringify({ 
+          success: true,
+          configured: true,
+          response: response
+        }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        })
+      } catch (error) {
+        return new Response(JSON.stringify({ 
+          error: error.message,
+          configured: false 
+        }), {
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        })
+      }
+    }
+
     // GET /articles - Fetch all articles with analytics
     if (method === 'GET' && path === '/articles') {
       const { data: articles, error } = await supabaseClient
