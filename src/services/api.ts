@@ -139,7 +139,12 @@ const API_BASE = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1`
 const isSupabaseConfigured = () => {
   const url = import.meta.env.VITE_SUPABASE_URL
   const key = import.meta.env.VITE_SUPABASE_ANON_KEY
-  return url && key && url !== 'https://your-project-ref.supabase.co' && key !== 'your-anon-key-here' && !key.includes('placeholder')
+  return url && key && 
+    url !== 'https://your-project-ref.supabase.co' && 
+    key !== 'your-anon-key-here' && 
+    !key.includes('placeholder') &&
+    url.includes('supabase.co') &&
+    key.length > 50
 }
 
 // Helper function to get auth headers
@@ -179,8 +184,8 @@ export const newsApi = {
       return FALLBACK_ARTICLES.find(article => article.id === id) || null
     }
     
-    const headers = await getAuthHeaders()
     try {
+      const headers = await getAuthHeaders()
       const response = await fetch(`${API_BASE}/news-processor/articles/${id}`, { headers })
       if (!response.ok) throw new Error('Failed to fetch article')
       return response.json()
@@ -193,16 +198,43 @@ export const newsApi = {
   // Generate AI explanation for article
   generateExplanation: async (id: string) => {
     if (!isSupabaseConfigured()) {
-      throw new Error('Supabase not configured')
+      // Return a mock explanation when Supabase is not configured
+      const article = FALLBACK_ARTICLES.find(a => a.id === id)
+      if (!article) throw new Error('Article not found')
+      
+      return {
+        explanation: `This is a comprehensive analysis of "${article.title}". 
+        
+The story represents a significant development in the ${article.category.toLowerCase()} sector. Here's what you need to know:
+
+**Background & Context:**
+${article.summary}
+
+**Key Implications:**
+This development could have far-reaching consequences for the industry and society at large. The timing is particularly significant given current global trends and technological advances.
+
+**What This Means:**
+For the average person, this news indicates important changes ahead. The implications extend beyond immediate effects to long-term societal and economic impacts.
+
+**Looking Forward:**
+Experts will be watching closely to see how this develops over the coming months. This story is likely to have lasting significance in the ${article.category.toLowerCase()} field.
+
+*Note: This is a demonstration explanation. Connect to Supabase for AI-generated content.*`
+      }
     }
     
-    const headers = await getAuthHeaders()
-    const response = await fetch(`${API_BASE}/news-processor/articles/${id}/explanation`, {
-      method: 'POST',
-      headers
-    })
-    if (!response.ok) throw new Error('Failed to generate explanation')
-    return response.json()
+    try {
+      const headers = await getAuthHeaders()
+      const response = await fetch(`${API_BASE}/news-processor/articles/${id}/explanation`, {
+        method: 'POST',
+        headers
+      })
+      if (!response.ok) throw new Error('Failed to generate explanation')
+      return response.json()
+    } catch (error) {
+      console.error('Failed to generate AI explanation:', error)
+      throw new Error('Failed to generate explanation. Please check your Supabase and Gemini API configuration.')
+    }
   },
 
   // Create new article
@@ -438,16 +470,22 @@ export const userApi = {
   trackInteraction: async (articleId: string, interactionType: string, metadata: any = {}) => {
     if (!isSupabaseConfigured()) {
       // Silent fail for tracking when not configured
+      console.log('Tracking interaction (demo mode):', { articleId, interactionType, metadata })
       return { success: true }
     }
     
-    const headers = await getAuthHeaders()
-    const response = await fetch(`${API_BASE}/user-management/interaction`, {
-      method: 'POST',
-      headers,
-      body: JSON.stringify({ articleId, interactionType, metadata })
-    })
-    if (!response.ok) throw new Error('Failed to track interaction')
-    return response.json()
+    try {
+      const headers = await getAuthHeaders()
+      const response = await fetch(`${API_BASE}/user-management/interaction`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ articleId, interactionType, metadata })
+      })
+      if (!response.ok) throw new Error('Failed to track interaction')
+      return response.json()
+    } catch (error) {
+      console.warn('Failed to track interaction:', error)
+      return { success: false }
+    }
   }
 }
