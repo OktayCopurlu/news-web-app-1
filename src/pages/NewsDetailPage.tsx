@@ -360,14 +360,6 @@ const NewsDetailPage: React.FC = () => {
                 </div>
               )}
               
-              {error && (
-                <div className="mt-4 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
-                  <p className="text-red-700 dark:text-red-300 text-sm">
-                    {error}
-                  </p>
-                </div>
-              )}
-              </div>
 
             {/* Tags */}
             <div className="mt-8 pt-6 border-t border-gray-200 dark:border-gray-700">
