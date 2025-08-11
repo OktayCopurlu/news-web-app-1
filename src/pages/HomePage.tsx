@@ -89,12 +89,10 @@ const HomePage: React.FC = () => {
       {!user?.onboarding_complete && <PersonalizationBanner />}
       
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Admin Panel - Only show when no articles */}
-        {articles.length === 0 && (
-          <div className="mb-8">
-            <AdminPanel />
-          </div>
-        )}
+        {/* Admin Panel - Always show for connection testing */}
+        <div className="mb-8">
+          <AdminPanel />
+        </div>
 
         {/* Top Headlines */}
         {articles.length > 0 && <TopHeadlines />}
