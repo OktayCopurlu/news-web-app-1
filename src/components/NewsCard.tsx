@@ -44,7 +44,7 @@ const NewsCard: React.FC<NewsCardProps> = ({ article, featured = false }) => {
         {/* Image */}
         <div className={`relative overflow-hidden ${featured ? 'h-48' : 'h-40'}`}>
           <img
-            src={article.imageUrl}
+            src={article.image_url || article.imageUrl}
             alt={article.title}
             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
           />
@@ -53,7 +53,7 @@ const NewsCard: React.FC<NewsCardProps> = ({ article, featured = false }) => {
               {article.category}
             </span>
           </div>
-          {article.audioSummary && user?.preferences.audioPreferences && (
+          {(article.audio_summary_url || article.audioSummary) && user?.preferences.audioPreferences && (
             <div className="absolute top-3 right-3">
               <div className="bg-white dark:bg-gray-800 p-1.5 rounded-full shadow-sm">
                 <Volume2 className="w-3 h-3 text-blue-600" />
@@ -69,11 +69,11 @@ const NewsCard: React.FC<NewsCardProps> = ({ article, featured = false }) => {
             <div className="flex items-center space-x-3">
               <span className="flex items-center space-x-1">
                 <Clock className="w-3 h-3" />
-                <span>{formatDate(article.publishedAt)}</span>
+                <span>{formatDate(article.published_at || article.publishedAt)}</span>
               </span>
               <span className="flex items-center space-x-1">
                 <Eye className="w-3 h-3" />
-                <span>{article.readingTime} min</span>
+                <span>{article.reading_time || article.readingTime} min</span>
               </span>
             </div>
             <span className="text-blue-600 dark:text-blue-400 font-medium">
@@ -94,20 +94,20 @@ const NewsCard: React.FC<NewsCardProps> = ({ article, featured = false }) => {
           </p>
 
           {/* Bias and Sentiment Indicators */}
-          {user?.preferences.biasAnalysis && (
+          {user?.preferences.biasAnalysis && article.article_analytics?.[0] && (
             <div className="flex items-center space-x-4 text-xs mb-3">
               <div className="flex items-center space-x-1">
                 <TrendingUp className="w-3 h-3" />
                 <span className="text-gray-500 dark:text-gray-400">Bias:</span>
-                <span className={getBiasColor(article.bias.score)}>
-                  {Math.abs(article.bias.score) < 0.1 ? 'Neutral' :
-                   article.bias.score > 0 ? 'Positive' : 'Negative'}
+                <span className={getBiasColor(article.article_analytics[0].bias_score)}>
+                  {Math.abs(article.article_analytics[0].bias_score) < 0.1 ? 'Neutral' :
+                   article.article_analytics[0].bias_score > 0 ? 'Positive' : 'Negative'}
                 </span>
               </div>
               <div className="flex items-center space-x-1">
                 <span className="text-gray-500 dark:text-gray-400">Sentiment:</span>
-                <span className={getSentimentColor(article.sentiment.label)}>
-                  {article.sentiment.label.charAt(0).toUpperCase() + article.sentiment.label.slice(1)}
+                <span className={getSentimentColor(article.article_analytics[0].sentiment_label)}>
+                  {article.article_analytics[0].sentiment_label.charAt(0).toUpperCase() + article.article_analytics[0].sentiment_label.slice(1)}
                 </span>
               </div>
             </div>
@@ -115,7 +115,7 @@ const NewsCard: React.FC<NewsCardProps> = ({ article, featured = false }) => {
 
           {/* Tags */}
           <div className="flex flex-wrap gap-1">
-            {article.tags.slice(0, 3).map((tag) => (
+            {article.tags?.slice(0, 3).map((tag) => (
               <span
                 key={tag}
                 className="px-2 py-1 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 rounded text-xs"
@@ -123,7 +123,7 @@ const NewsCard: React.FC<NewsCardProps> = ({ article, featured = false }) => {
                 {tag}
               </span>
             ))}
-            {article.tags.length > 3 && (
+            {article.tags && article.tags.length > 3 && (
               <span className="px-2 py-1 text-gray-500 dark:text-gray-400 text-xs">
                 +{article.tags.length - 3} more
               </span>
