@@ -70,7 +70,7 @@ const NewsDetailPage: React.FC = () => {
         </div>
       </div>
     );
-    }
+  }
 
 
   const formatDate = (dateString: string) => {
@@ -146,7 +146,7 @@ const NewsDetailPage: React.FC = () => {
               
               <div className="flex items-center space-x-2">
                 {/* Audio Player */}
-                    +{article.tags.length - 3} more
+                {article.audio_summary_url && (
                   <AudioPlayer audioUrl={article.audio_summary_url} duration={article.audio_duration} />
                 )}
                 
@@ -312,6 +312,11 @@ const NewsDetailPage: React.FC = () => {
                   </span>
                 ))}
                 {article.tags && article.tags.length > 3 && (
+                  <span className="px-3 py-1 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-full text-sm">
+                    +{article.tags.length - 3} more
+                  </span>
+                )}
+              </div>
             </div>
           </div>
         </article>
