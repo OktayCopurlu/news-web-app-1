@@ -193,36 +193,6 @@ serve(async (req) => {
       })
     }
 
-        userId = user?.id
-      }
-
-      if (userId) {
-        await supabaseClient
-          .from('user_interactions')
-          .insert({
-            user_id: userId,
-            article_id: articleId,
-            interaction_type: interactionType,
-            metadata
-          })
-      }
-
-      // Update article view count if it's a view interaction
-      if (interactionType === 'view') {
-        await supabaseClient
-          .from('articles')
-          .update({ 
-            view_count: supabaseClient.sql`view_count + 1`,
-            updated_at: new Date().toISOString()
-          })
-          .eq('id', articleId)
-      }
-
-      return new Response(JSON.stringify({ success: true }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      })
-    }
-
     return new Response(JSON.stringify({ error: 'Not found' }), {
       status: 404,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
