@@ -38,11 +38,14 @@ serve(async (req) => {
     const url = new URL(req.url)
     
     // Remove the function prefix to get the actual path
-    const path = url.pathname.replace('/functions/v1/news-processor', '') || '/'
+    const originalPath = url.pathname
+    let path = originalPath.replace('/functions/v1/news-processor', '')
+    if (path === '') path = '/'
     
-    console.log(`Processing request: ${method} ${path}`)
+    console.log(`Processing request: ${method}`)
+    console.log(`Original pathname: ${originalPath}`)
+    console.log(`Processed path: ${path}`)
     console.log(`Full URL: ${req.url}`)
-    console.log(`Pathname: ${url.pathname}`)
 
     // POST /test-gemini - Test Gemini API connection
     if (method === 'POST' && path === '/test-gemini') {
