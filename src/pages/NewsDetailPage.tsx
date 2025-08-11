@@ -21,6 +21,7 @@ const NewsDetailPage: React.FC = () => {
   const [showCoverage, setShowCoverage] = useState(false);
   const [showChat, setShowChat] = useState(false);
   const [isBookmarked, setIsBookmarked] = useState(false);
+  const [autoGeneratingExplanation, setAutoGeneratingExplanation] = useState(false);
 
   useEffect(() => {
     const fetchArticle = async () => {
@@ -42,6 +43,30 @@ const NewsDetailPage: React.FC = () => {
     fetchArticle();
   }, [id]);
 
+  // Auto-generate explanation when article loads
+  useEffect(() => {
+    const autoGenerateExplanation = async () => {
+      if (article && !article.ai_explanation && !article.explanation_generated && !autoGeneratingExplanation) {
+        setAutoGeneratingExplanation(true);
+        try {
+          const response = await newsApi.generateExplanation(article.id);
+          setArticle(prev => ({
+            ...prev,
+            ai_explanation: response.explanation,
+            explanation_generated: true
+          }));
+        } catch (err) {
+          console.error('Failed to auto-generate explanation:', err);
+        } finally {
+          setAutoGeneratingExplanation(false);
+        }
+      }
+    };
+
+    if (article) {
+      autoGenerateExplanation();
+    }
+  }, [article?.id]);
   const handleGenerateExplanation = async () => {
     if (!article || generatingExplanation) return;
     
@@ -206,25 +231,15 @@ const NewsDetailPage: React.FC = () => {
               </div>
             )}
 
-            {/* Summary */}
-            <div className="mb-8">
-              <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">
-                Summary
-              </h2>
-              <p className="text-gray-700 dark:text-gray-300 leading-relaxed text-lg">
-                {article.summary}
-              </p>
-            </div>
-
             {/* Action Buttons */}
-            <div className="flex flex-wrap gap-3 mb-8">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
               {article.eli5_summary && (
                 <button
                   onClick={() => setShowELI5(!showELI5)}
-                  className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-colors ${
+                  className={`flex items-center justify-center space-x-2 px-6 py-3 rounded-lg transition-colors font-medium ${
                     showELI5
-                      ? 'bg-purple-100 dark:bg-purple-900/20 text-purple-700 dark:text-purple-300'
-                      : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-purple-50 dark:hover:bg-purple-900/10'
+                      ? 'bg-purple-600 text-white'
+                      : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-purple-50 dark:hover:bg-purple-900/10 hover:text-purple-600 dark:hover:text-purple-400'
                   }`}
                 >
                   <Brain className="w-4 h-4" />
@@ -232,26 +247,12 @@ const NewsDetailPage: React.FC = () => {
                 </button>
               )}
               
-              {coverageComparison.length > 0 && (
-                <button
-                  onClick={() => setShowCoverage(!showCoverage)}
-                  className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-colors ${
-                    showCoverage
-                      ? 'bg-orange-100 dark:bg-orange-900/20 text-orange-700 dark:text-orange-300'
-                      : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-orange-50 dark:hover:bg-orange-900/10'
-                  }`}
-                >
-                  <BarChart3 className="w-4 h-4" />
-                  <span>Compare Coverage</span>
-                </button>
-              )}
-              
               <button
                 onClick={() => setShowChat(!showChat)}
-                className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-colors ${
+                className={`flex items-center justify-center space-x-2 px-6 py-3 rounded-lg transition-colors font-medium ${
                   showChat
-                    ? 'bg-blue-100 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300'
-                    : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-blue-50 dark:hover:bg-blue-900/10'
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-blue-50 dark:hover:bg-blue-900/10 hover:text-blue-600 dark:hover:text-blue-400'
                 }`}
               >
                 <MessageCircle className="w-4 h-4" />
@@ -260,16 +261,33 @@ const NewsDetailPage: React.FC = () => {
               
               <Link
                 to={`/quiz/${article.id}`}
-                className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-colors ${
+                className={`flex items-center justify-center space-x-2 px-6 py-3 rounded-lg transition-colors font-medium ${
                   quiz 
-                    ? 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-green-50 dark:hover:bg-green-900/10'
-                    : 'bg-gray-200 dark:bg-gray-600 text-gray-500 dark:text-gray-400 cursor-not-allowed'
+                    ? 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-green-50 dark:hover:bg-green-900/10 hover:text-green-600 dark:hover:text-green-400'
+                    : 'bg-gray-200 dark:bg-gray-600 text-gray-500 dark:text-gray-400 cursor-not-allowed opacity-50'
                 }`}
               >
                 <Eye className="w-4 h-4" />
                 <span>Test Knowledge</span>
               </Link>
             </div>
+
+            {/* Coverage Comparison Button - Separate row */}
+            {coverageComparison.length > 0 && (
+              <div className="mb-8">
+                <button
+                  onClick={() => setShowCoverage(!showCoverage)}
+                  className={`flex items-center justify-center space-x-2 px-6 py-3 rounded-lg transition-colors font-medium w-full sm:w-auto ${
+                    showCoverage
+                      ? 'bg-orange-600 text-white'
+                      : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-orange-50 dark:hover:bg-orange-900/10 hover:text-orange-600 dark:hover:text-orange-400'
+                  }`}
+                >
+                  <BarChart3 className="w-4 h-4" />
+                  <span>Compare Coverage</span>
+                </button>
+              </div>
+            )}
 
             {/* ELI5 Summary */}
             {showELI5 && article.eli5_summary && (
@@ -312,52 +330,47 @@ const NewsDetailPage: React.FC = () => {
 
             {/* Full Article Content */}
             <div className="mb-8">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
-                  Detailed AI Explanation
-                </h2>
-                {!article.explanation_generated && !article.ai_explanation && (
-                  <button
-                    onClick={handleGenerateExplanation}
-                    disabled={generatingExplanation}
-                    className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                  >
-                    {generatingExplanation ? (
-                      <Loader className="w-4 h-4 animate-spin" />
-                    ) : (
-                      <Brain className="w-4 h-4" />
-                    )}
-                    <span>{generatingExplanation ? 'Generating...' : 'Generate Explanation'}</span>
-                  </button>
-                )}
-              </div>
+              <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
+                Detailed AI Explanation
+              </h2>
               
-              {article.ai_explanation ? (
+              {article.ai_explanation || autoGeneratingExplanation ? (
+                autoGeneratingExplanation && !article.ai_explanation ? (
+                  <div className="text-center py-8 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                    <Loader className="w-8 h-8 animate-spin text-blue-600 mx-auto mb-4" />
+                    <p className="text-gray-600 dark:text-gray-400">
+                      AI is generating a detailed explanation...
+                    </p>
+                  </div>
+                ) : (
                 <div className="prose prose-lg dark:prose-invert max-w-none">
                   <div className="text-gray-700 dark:text-gray-300 leading-relaxed whitespace-pre-line bg-gray-50 dark:bg-gray-700 rounded-lg p-6">
                     {article.ai_explanation}
                   </div>
                 </div>
-              ) : !generatingExplanation ? (
-                <div className="text-center py-8 bg-gray-50 dark:bg-gray-700 rounded-lg">
-                  <Brain className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                  <p className="text-gray-600 dark:text-gray-400 mb-4">
-                    Get a detailed AI explanation of this news story
-                  </p>
-                  <button
-                    onClick={handleGenerateExplanation}
-                    className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors"
-                  >
-                    Generate Detailed Explanation
-                  </button>
-                </div>
+                )
               ) : (
-                <div className="text-center py-8 bg-gray-50 dark:bg-gray-700 rounded-lg">
-                  <Loader className="w-8 h-8 animate-spin text-blue-600 mx-auto mb-4" />
-                  <p className="text-gray-600 dark:text-gray-400">
-                    AI is generating a detailed explanation...
-                  </p>
-                </div>
+                !generatingExplanation ? (
+                  <div className="text-center py-8 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                    <Brain className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                    <p className="text-gray-600 dark:text-gray-400 mb-4">
+                      Get a detailed AI explanation of this news story
+                    </p>
+                    <button
+                      onClick={handleGenerateExplanation}
+                      className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+                    >
+                      Generate Detailed Explanation
+                    </button>
+                  </div>
+                ) : (
+                  <div className="text-center py-8 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                    <Loader className="w-8 h-8 animate-spin text-blue-600 mx-auto mb-4" />
+                    <p className="text-gray-600 dark:text-gray-400">
+                      AI is generating a detailed explanation...
+                    </p>
+                  </div>
+                )
               )}
             </div>
               
