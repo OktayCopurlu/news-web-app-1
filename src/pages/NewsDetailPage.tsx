@@ -55,6 +55,7 @@ const NewsDetailPage: React.FC = () => {
       }));
     } catch (err) {
       console.error('Failed to generate explanation:', err);
+      setError('Failed to generate AI explanation. Please check if the AI service is properly configured.');
     } finally {
       setGeneratingExplanation(false);
     }
@@ -355,6 +356,14 @@ const NewsDetailPage: React.FC = () => {
                   <Loader className="w-8 h-8 animate-spin text-blue-600 mx-auto mb-4" />
                   <p className="text-gray-600 dark:text-gray-400">
                     AI is generating a detailed explanation...
+                  </p>
+                </div>
+              )}
+              
+              {error && (
+                <div className="mt-4 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
+                  <p className="text-red-700 dark:text-red-300 text-sm">
+                    {error}
                   </p>
                 </div>
               )}
