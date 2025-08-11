@@ -398,6 +398,7 @@ serve(async (req) => {
         'POST /test-gemini',
         'GET /articles',
         'GET /articles/:id',
+        'POST /articles/:id/eli5',
         'POST /articles/:id/explanation',
         'POST /articles'
       ]
