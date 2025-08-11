@@ -107,6 +107,7 @@ serve(async (req) => {
 
     // GET /articles - Fetch all articles with analytics
     if (method === 'GET' && path === '/articles') {
+      console.log('✅ Matched GET /articles route')
       console.log('Fetching all articles...')
       
       const { data: articles, error } = await supabaseClient
@@ -133,6 +134,7 @@ serve(async (req) => {
     // GET /articles/:id - Get specific article with all related data
     if (method === 'GET' && path.startsWith('/articles/') && !path.includes('/explanation')) {
       const articleId = path.split('/')[2]
+      console.log(`✅ Matched GET /articles/${articleId} route`)
       console.log(`Fetching article: ${articleId}`)
       
       const { data: article, error } = await supabaseClient
@@ -159,6 +161,7 @@ serve(async (req) => {
     // POST /articles/:id/explanation - Generate AI explanation for article
     if (method === 'POST' && path.includes('/explanation')) {
       const articleId = path.split('/')[2]
+      console.log(`✅ Matched POST /articles/${articleId}/explanation route`)
       console.log(`Generating explanation for article: ${articleId}`)
       
       if (!geminiApiKey) {
@@ -269,6 +272,7 @@ serve(async (req) => {
 
     // POST /articles - Create new article with AI analysis
     if (method === 'POST' && path === '/articles') {
+      console.log('✅ Matched POST /articles route')
       console.log('Creating new article...')
       
       if (!geminiApiKey) {
