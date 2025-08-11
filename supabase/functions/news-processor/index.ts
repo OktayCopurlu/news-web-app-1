@@ -20,6 +20,7 @@ interface NewsArticle {
 }
 
 serve(async (req) => {
+  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { status: 200, headers: corsHeaders })
   }
@@ -31,25 +32,23 @@ serve(async (req) => {
     )
 
     const geminiApiKey = Deno.env.get('GEMINI_API_KEY')
-    if (!geminiApiKey) {
-      console.error('GEMINI_API_KEY not found in environment variables')
-      return new Response(JSON.stringify({ 
-        error: 'Gemini API key not configured. Please add GEMINI_API_KEY to your Supabase project environment variables.' 
-      }), {
-        status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      })
-    }
-
+    
     const { method } = req
     const url = new URL(req.url)
-    const path = url.pathname.replace('/functions/v1/news-processor', '')
+    
+    // Remove the function prefix to get the actual path
+    const path = url.pathname.replace('/functions/v1/news-processor', '') || '/'
+    
+    console.log(`Processing request: ${method} ${path}`)
 
     // POST /test-gemini - Test Gemini API connection
     if (method === 'POST' && path === '/test-gemini') {
+      console.log('Testing Gemini API connection...')
+      
       if (!geminiApiKey) {
+        console.error('GEMINI_API_KEY not found in environment variables')
         return new Response(JSON.stringify({ 
-          error: 'Gemini API key not configured',
+          error: 'Gemini API key not configured. Please add GEMINI_API_KEY to your Supabase project environment variables.',
           configured: false 
         }), {
           status: 500,
@@ -71,6 +70,7 @@ serve(async (req) => {
 
         if (!testResponse.ok) {
           const errorText = await testResponse.text()
+          console.error('Gemini API error:', testResponse.status, errorText)
           return new Response(JSON.stringify({ 
             error: `Gemini API error: ${testResponse.status} - ${errorText}`,
             configured: false 
@@ -81,8 +81,9 @@ serve(async (req) => {
         }
 
         const testData = await testResponse.json()
-        const response = testData.candidates[0]?.content?.parts[0]?.text || 'No response'
+        const response = testData.candidates?.[0]?.content?.parts?.[0]?.text || 'No response'
 
+        console.log('Gemini API test successful')
         return new Response(JSON.stringify({ 
           success: true,
           configured: true,
@@ -91,6 +92,7 @@ serve(async (req) => {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         })
       } catch (error) {
+        console.error('Gemini API test error:', error)
         return new Response(JSON.stringify({ 
           error: error.message,
           configured: false 
@@ -103,6 +105,8 @@ serve(async (req) => {
 
     // GET /articles - Fetch all articles with analytics
     if (method === 'GET' && path === '/articles') {
+      console.log('Fetching all articles...')
+      
       const { data: articles, error } = await supabaseClient
         .from('articles')
         .select(`
@@ -113,9 +117,39 @@ serve(async (req) => {
         `)
         .order('published_at', { ascending: false })
 
-      if (error) throw error
+      if (error) {
+        console.error('Database error:', error)
+        throw error
+      }
 
+      console.log(`Found ${articles?.length || 0} articles`)
       return new Response(JSON.stringify(articles), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      })
+    }
+
+    // GET /articles/:id - Get specific article with all related data
+    if (method === 'GET' && path.startsWith('/articles/') && !path.includes('/explanation')) {
+      const articleId = path.split('/')[2]
+      console.log(`Fetching article: ${articleId}`)
+      
+      const { data: article, error } = await supabaseClient
+        .from('articles')
+        .select(`
+          *,
+          article_analytics(*),
+          quizzes(*),
+          coverage_comparisons(*)
+        `)
+        .eq('id', articleId)
+        .single()
+
+      if (error) {
+        console.error('Database error:', error)
+        throw error
+      }
+
+      return new Response(JSON.stringify(article), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       })
     }
@@ -123,6 +157,17 @@ serve(async (req) => {
     // POST /articles/:id/explanation - Generate AI explanation for article
     if (method === 'POST' && path.includes('/explanation')) {
       const articleId = path.split('/')[2]
+      console.log(`Generating explanation for article: ${articleId}`)
+      
+      if (!geminiApiKey) {
+        console.error('GEMINI_API_KEY not found for explanation generation')
+        return new Response(JSON.stringify({ 
+          error: 'Gemini API key not configured. Please add GEMINI_API_KEY to your Supabase project environment variables.' 
+        }), {
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        })
+      }
       
       // Get article
       const { data: article, error: articleError } = await supabaseClient
@@ -131,10 +176,14 @@ serve(async (req) => {
         .eq('id', articleId)
         .single()
 
-      if (articleError) throw articleError
+      if (articleError) {
+        console.error('Article not found:', articleError)
+        throw articleError
+      }
 
       // Check if explanation already exists
       if (article.explanation_generated && article.ai_explanation) {
+        console.log('Explanation already exists, returning cached version')
         return new Response(JSON.stringify({ explanation: article.ai_explanation }), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         })
@@ -160,50 +209,76 @@ serve(async (req) => {
         Write this as an informative, educational explanation (800-1200 words) that helps readers fully understand the significance of this news story. Use clear, accessible language while being thorough and analytical.
       `
 
-      const geminiResponse = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${geminiApiKey}`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            contents: [{ parts: [{ text: explanationPrompt }] }]
-          })
+      try {
+        console.log('Calling Gemini API for explanation...')
+        const geminiResponse = await fetch(
+          `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${geminiApiKey}`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              contents: [{ parts: [{ text: explanationPrompt }] }]
+            })
+          }
+        )
+
+        if (!geminiResponse.ok) {
+          const errorText = await geminiResponse.text()
+          console.error('Gemini API error:', geminiResponse.status, errorText)
+          throw new Error(`Gemini API error: ${geminiResponse.status} - ${errorText}`)
         }
-      )
 
-      if (!geminiResponse.ok) {
-        const errorText = await geminiResponse.text()
-        throw new Error(`Gemini API error: ${geminiResponse.status} - ${errorText}`)
-      }
+        const geminiData = await geminiResponse.json()
+        
+        if (!geminiData.candidates || !geminiData.candidates[0]?.content?.parts[0]?.text) {
+          console.error('Invalid Gemini response:', geminiData)
+          throw new Error('Invalid response from Gemini API')
+        }
+        
+        const aiExplanation = geminiData.candidates[0]?.content?.parts[0]?.text || 
+          "Unable to generate detailed explanation at this time. Please try again later."
 
-      const geminiData = await geminiResponse.json()
-      
-      if (!geminiData.candidates || !geminiData.candidates[0]?.content?.parts[0]?.text) {
-        throw new Error('Invalid response from Gemini API')
-      }
-      
-      const aiExplanation = geminiData.candidates[0]?.content?.parts[0]?.text || 
-        "Unable to generate detailed explanation at this time. Please try again later."
+        console.log('Generated explanation, updating database...')
+        
+        // Update article with AI explanation
+        const { error: updateError } = await supabaseClient
+          .from('articles')
+          .update({
+            ai_explanation: aiExplanation,
+            explanation_generated: true,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', articleId)
 
-      // Update article with AI explanation
-      const { error: updateError } = await supabaseClient
-        .from('articles')
-        .update({
-          ai_explanation: aiExplanation,
-          explanation_generated: true,
-          updated_at: new Date().toISOString()
+        if (updateError) {
+          console.error('Database update error:', updateError)
+          throw updateError
+        }
+
+        console.log('Explanation generated and saved successfully')
+        return new Response(JSON.stringify({ explanation: aiExplanation }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         })
-        .eq('id', articleId)
-
-      if (updateError) throw updateError
-
-      return new Response(JSON.stringify({ explanation: aiExplanation }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      })
+      } catch (error) {
+        console.error('Error generating explanation:', error)
+        throw error
+      }
     }
 
     // POST /articles - Create new article with AI analysis
     if (method === 'POST' && path === '/articles') {
+      console.log('Creating new article...')
+      
+      if (!geminiApiKey) {
+        console.error('GEMINI_API_KEY not found for article creation')
+        return new Response(JSON.stringify({ 
+          error: 'Gemini API key not configured. Please add GEMINI_API_KEY to your Supabase project environment variables.' 
+        }), {
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        })
+      }
+      
       const articleData: NewsArticle = await req.json()
 
       // Generate AI-powered analysis using Gemini
@@ -217,7 +292,7 @@ serve(async (req) => {
         6. 5 relevant tags
 
         Article Title: ${articleData.title}
-        Article Content: ${articleData.content}
+        Article Summary: ${articleData.summary}
 
         Respond in JSON format:
         {
@@ -231,100 +306,102 @@ serve(async (req) => {
         }
       `
 
-      const geminiResponse = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${geminiApiKey}`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            contents: [{ parts: [{ text: analysisPrompt }] }]
-          })
-        }
-      )
-
-      const geminiData = await geminiResponse.json()
-      let analysis
-      
       try {
-        const responseText = geminiData.candidates[0].content.parts[0].text
-        analysis = JSON.parse(responseText)
-      } catch (e) {
-        // Fallback analysis if AI parsing fails
-        analysis = {
-          biasScore: 0,
-          biasExplanation: "Analysis unavailable",
-          sentimentScore: 0,
-          sentimentLabel: "neutral",
-          credibilityScore: 0.8,
-          eli5Summary: "This is a simplified explanation of the news story.",
-          tags: [articleData.category.toLowerCase(), "news", "current-events"]
+        const geminiResponse = await fetch(
+          `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${geminiApiKey}`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              contents: [{ parts: [{ text: analysisPrompt }] }]
+            })
+          }
+        )
+
+        const geminiData = await geminiResponse.json()
+        let analysis
+        
+        try {
+          const responseText = geminiData.candidates[0].content.parts[0].text
+          analysis = JSON.parse(responseText)
+        } catch (e) {
+          console.warn('Failed to parse AI analysis, using fallback')
+          // Fallback analysis if AI parsing fails
+          analysis = {
+            biasScore: 0,
+            biasExplanation: "Analysis unavailable",
+            sentimentScore: 0,
+            sentimentLabel: "neutral",
+            credibilityScore: 0.8,
+            eli5Summary: "This is a simplified explanation of the news story.",
+            tags: [articleData.category.toLowerCase(), "news", "current-events"]
+          }
         }
+
+        // Insert article
+        const { data: article, error: articleError } = await supabaseClient
+          .from('articles')
+          .insert({
+            ...articleData,
+            tags: analysis.tags,
+            eli5_summary: analysis.eli5Summary,
+            reading_time: Math.ceil(articleData.summary.split(' ').length / 50),
+            explanation_generated: false
+          })
+          .select()
+          .single()
+
+        if (articleError) throw articleError
+
+        // Insert analytics
+        const { error: analyticsError } = await supabaseClient
+          .from('article_analytics')
+          .insert({
+            article_id: article.id,
+            bias_score: analysis.biasScore,
+            bias_explanation: analysis.biasExplanation,
+            bias_sources: ['AI Analysis', 'Content Review'],
+            sentiment_score: analysis.sentimentScore,
+            sentiment_label: analysis.sentimentLabel,
+            credibility_score: analysis.credibilityScore
+          })
+
+        if (analyticsError) throw analyticsError
+
+        console.log('Article created successfully')
+        return new Response(JSON.stringify(article), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        })
+      } catch (error) {
+        console.error('Error creating article:', error)
+        throw error
       }
-
-      // Insert article
-      const { data: article, error: articleError } = await supabaseClient
-        .from('articles')
-        .insert({
-          ...articleData,
-          tags: analysis.tags,
-          eli5_summary: analysis.eli5Summary,
-          reading_time: Math.ceil(articleData.summary.split(' ').length / 50),
-          explanation_generated: false
-        })
-        .select()
-        .single()
-
-      if (articleError) throw articleError
-
-      // Insert analytics
-      const { error: analyticsError } = await supabaseClient
-        .from('article_analytics')
-        .insert({
-          article_id: article.id,
-          bias_score: analysis.biasScore,
-          bias_explanation: analysis.biasExplanation,
-          bias_sources: ['AI Analysis', 'Content Review'],
-          sentiment_score: analysis.sentimentScore,
-          sentiment_label: analysis.sentimentLabel,
-          credibility_score: analysis.credibilityScore
-        })
-
-      if (analyticsError) throw analyticsError
-
-      return new Response(JSON.stringify(article), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      })
     }
 
-    // GET /articles/:id - Get specific article with all related data
-    if (method === 'GET' && path.startsWith('/articles/')) {
-      const articleId = path.split('/')[2]
-      
-      const { data: article, error } = await supabaseClient
-        .from('articles')
-        .select(`
-          *,
-          article_analytics(*),
-          quizzes(*),
-          coverage_comparisons(*)
-        `)
-        .eq('id', articleId)
-        .single()
-
-      if (error) throw error
-
-      return new Response(JSON.stringify(article), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      })
-    }
-
-    return new Response(JSON.stringify({ error: 'Not found' }), {
+    // Default response for unmatched routes
+    console.log(`Route not found: ${method} ${path}`)
+    return new Response(JSON.stringify({ 
+      error: 'Not found',
+      method,
+      path,
+      availableRoutes: [
+        'POST /test-gemini',
+        'GET /articles',
+        'GET /articles/:id',
+        'POST /articles/:id/explanation',
+        'POST /articles'
+      ]
+    }), {
       status: 404,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     })
 
   } catch (error) {
-    return new Response(JSON.stringify({ error: error.message }), {
+    console.error('Function error:', error)
+    return new Response(JSON.stringify({ 
+      error: error.message,
+      stack: error.stack 
+    }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     })
