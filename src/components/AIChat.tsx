@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
 import { Send, Bot, User, Loader } from 'lucide-react';
-import { NewsArticle } from '../contexts/NewsContext';
+import { useNews } from '../contexts/NewsContext';
 
 interface AIChatProps {
-  article: NewsArticle;
+  article: any;
 }
 
 interface ChatMessage {
@@ -14,6 +14,7 @@ interface ChatMessage {
 }
 
 const AIChat: React.FC<AIChatProps> = ({ article }) => {
+  const { sendChatMessage } = useNews();
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
       id: '1',
@@ -24,33 +25,6 @@ const AIChat: React.FC<AIChatProps> = ({ article }) => {
   ]);
   const [inputMessage, setInputMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-
-  // Mock AI responses based on common questions
-  const generateAIResponse = (userMessage: string): string => {
-    const message = userMessage.toLowerCase();
-    
-    if (message.includes('explain') || message.includes('what')) {
-      return `Based on the article, this story is about ${article.summary.substring(0, 150)}... The key points include the main developments and their implications for the broader context.`;
-    }
-    
-    if (message.includes('source') || message.includes('reliable')) {
-      return `This article comes from ${article.source}, which has a bias score of ${article.bias.score.toFixed(1)}. The information has been cross-referenced with ${article.bias.sources.join(', ')} to ensure accuracy.`;
-    }
-    
-    if (message.includes('impact') || message.includes('effect')) {
-      return `The potential impacts of this development are significant. Based on the article content, we can expect effects on policy, economy, and society. The ${article.sentiment.label} sentiment suggests ${article.sentiment.label === 'positive' ? 'optimistic' : article.sentiment.label === 'negative' ? 'concerning' : 'mixed'} reactions.`;
-    }
-    
-    if (message.includes('context') || message.includes('background')) {
-      return `To understand this story better, it's important to know the background context. This relates to ongoing developments in ${article.category.toLowerCase()} and connects to broader trends we've been tracking.`;
-    }
-    
-    if (message.includes('opinion') || message.includes('think')) {
-      return `While I provide analysis based on facts, different perspectives exist on this issue. The coverage comparison shows how ${article.coverageComparison?.[0]?.source || 'various sources'} approach this differently, reflecting different editorial viewpoints.`;
-    }
-    
-    return `That's an interesting question about this ${article.category.toLowerCase()} story. Based on the article content and my analysis, I'd say this development is significant because it touches on important themes like ${article.tags.slice(0, 2).join(' and ')}. What specific aspect would you like me to elaborate on?`;
-  };
 
   const handleSendMessage = async () => {
     if (!inputMessage.trim()) return;
@@ -66,18 +40,36 @@ const AIChat: React.FC<AIChatProps> = ({ article }) => {
     setInputMessage('');
     setIsLoading(true);
 
-    // Simulate AI processing time
-    setTimeout(() => {
+    try {
+      // Get chat history for context
+      const chatHistory = messages.map(msg => ({
+        type: msg.type,
+        content: msg.content
+      }));
+
+      // Send message to real AI API
+      const response = await sendChatMessage(article.id, inputMessage, chatHistory);
+      
       const aiResponse: ChatMessage = {
         id: (Date.now() + 1).toString(),
         type: 'ai',
-        content: generateAIResponse(inputMessage),
+        content: response,
         timestamp: new Date()
       };
       
       setMessages(prev => [...prev, aiResponse]);
+    } catch (error) {
+      console.error('Failed to send message:', error);
+      const errorResponse: ChatMessage = {
+        id: (Date.now() + 1).toString(),
+        type: 'ai',
+        content: "I'm sorry, I'm having trouble responding right now. Please try again later.",
+        timestamp: new Date()
+      };
+      setMessages(prev => [...prev, errorResponse]);
+    } finally {
       setIsLoading(false);
-    }, 1500);
+    }
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
