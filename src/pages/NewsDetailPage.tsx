@@ -40,7 +40,7 @@ const NewsDetailPage: React.FC = () => {
     };
 
     fetchArticle();
-  }, [id, getArticleById]);
+  }, [id]);
 
   const handleGenerateExplanation = async () => {
     if (!article || generatingExplanation) return;
