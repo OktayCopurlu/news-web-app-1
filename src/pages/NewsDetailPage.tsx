@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { Clock, Share2, Bookmark, MessageCircle, Play, Pause, BarChart3, Eye, Brain, ArrowLeft } from 'lucide-react';
-import { useArticles } from '../hooks/useArticles';
+import { useNews } from '../contexts/NewsContext';
 import { useUser } from '../contexts/UserContext';
 import BiasIndicator from '../components/BiasIndicator';
 import CoverageComparison from '../components/CoverageComparison';
@@ -10,7 +10,7 @@ import AudioPlayer from '../components/AudioPlayer';
 
 const NewsDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
-  const { getArticle } = useArticles();
+  const { getArticleById } = useNews();
   const { user } = useUser();
   const [article, setArticle] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -27,7 +27,7 @@ const NewsDetailPage: React.FC = () => {
       try {
         setLoading(true);
         setError(null);
-        const foundArticle = await getArticle(id);
+        const foundArticle = await getArticleById(id);
         setArticle(foundArticle);
       } catch (err) {
         setError('Failed to load article');
@@ -38,7 +38,7 @@ const NewsDetailPage: React.FC = () => {
     };
 
     fetchArticle();
-  }, [id, getArticle]);
+  }, [id, getArticleById]);
 
   if (loading) {
     return (
