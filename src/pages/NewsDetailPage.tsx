@@ -359,6 +359,7 @@ const NewsDetailPage: React.FC = () => {
                   </p>
                 </div>
               )}
+            </div>
               
 
             {/* Tags */}
