@@ -1,18 +1,19 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
-
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
   'Access-Control-Allow-Methods': 'POST, GET, OPTIONS',
 }
 
-serve(async (req) => {
+Deno.serve(async (req) => {
+  console.log(`AI Chat Function - Method: ${req.method}, URL: ${req.url}`)
+  
   if (req.method === 'OPTIONS') {
     return new Response(null, { status: 200, headers: corsHeaders })
   }
 
   try {
+    const { createClient } = await import('https://esm.sh/@supabase/supabase-js@2')
+    
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_ANON_KEY') ?? '',
@@ -20,16 +21,22 @@ serve(async (req) => {
 
     const geminiApiKey = Deno.env.get('GEMINI_API_KEY')
     if (!geminiApiKey) {
+      console.error('GEMINI_API_KEY not found')
       throw new Error('Gemini API key not found')
     }
 
     const { method } = req
     const url = new URL(req.url)
     const path = url.pathname.replace(/^\/functions\/v1\/ai-chat|^\/ai-chat/, '')
+    
+    console.log(`Processed path: ${path}`)
 
     // POST /chat - Send message to AI
-    if (method === 'POST' && path === '/chat') {
+    if (method === 'POST' && (path === '/chat' || path === '')) {
+      console.log('Processing chat request...')
       const { articleId, message, chatHistory, userId } = await req.json()
+
+      console.log(`Chat request - Article: ${articleId}, Message: ${message}`)
 
       // Get article context
       const { data: article, error: articleError } = await supabaseClient
@@ -99,45 +106,14 @@ serve(async (req) => {
       })
     }
 
-    // GET /chat/:articleId - Get chat history
-    if (method === 'GET' && path.startsWith('/chat/')) {
-      const articleId = path.split('/')[2]
-      const authHeader = req.headers.get('authorization')
-      
-      if (!authHeader) {
-        return new Response(JSON.stringify({ messages: [] }), {
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        })
-      }
-
-      const { data: { user } } = await supabaseClient.auth.getUser(
-        authHeader.replace('Bearer ', '')
-      )
-
-      if (!user) {
-        return new Response(JSON.stringify({ messages: [] }), {
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        })
-      }
-
-      const { data: chat } = await supabaseClient
-        .from('ai_chats')
-        .select('messages')
-        .eq('user_id', user.id)
-        .eq('article_id', articleId)
-        .single()
-
-      return new Response(JSON.stringify({ messages: chat?.messages || [] }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      })
-    }
-
+    console.log(`No matching route found for: ${method} ${path}`)
     return new Response(JSON.stringify({ error: 'Not found' }), {
       status: 404,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     })
 
   } catch (error) {
+    console.error('AI Chat Function Error:', error)
     return new Response(JSON.stringify({ error: error.message }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
