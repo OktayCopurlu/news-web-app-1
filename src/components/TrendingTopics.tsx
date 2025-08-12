@@ -1,5 +1,5 @@
 import React from 'react';
-import { TrendingUp, Hash } from 'lucide-react';
+import { TrendingUp } from 'lucide-react';
 
 const TrendingTopics: React.FC = () => {
   const trendingTopics = [

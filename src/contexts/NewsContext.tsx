@@ -1,17 +1,12 @@
-import React, { createContext, useContext, useState, useEffect } from 'react'
+import React, { createContext, useState } from 'react'
 import { useArticles, type Article } from '../hooks/useArticles'
 import { aiApi, quizApi, coverageApi, userApi } from '../services/api'
+import type { QuizQuestion } from '../types/models'
 
 export interface NewsQuiz {
   id: string
-  articleId: string
-  questions: Array<{
-    id: string
-    question: string
-    options: string[]
-    correctAnswer: number
-    explanation: string
-  }>
+  articleId?: string
+  questions: QuizQuestion[]
   difficulty: string
 }
 
@@ -21,6 +16,10 @@ export interface CoverageComparison {
   bias: number
 }
 
+interface ArticleFilters { category?: string; language?: string }
+interface ChatMessage { id?: string; type?: string; content: string; timestamp?: string }
+interface InteractionMetadata { [key: string]: unknown }
+
 interface NewsContextType {
   articles: Article[]
   loading: boolean
@@ -28,23 +27,15 @@ interface NewsContextType {
   selectedArticle: Article | null
   setSelectedArticle: (article: Article | null) => void
   getArticleById: (id: string) => Promise<Article | null>
-  searchArticles: (query: string, filters?: any) => Promise<void>
-  sendChatMessage: (articleId: string, message: string, history: any[]) => Promise<string>
+  searchArticles: (query: string, filters?: ArticleFilters) => Promise<void>
+  sendChatMessage: (articleId: string, message: string, history: ChatMessage[]) => Promise<string>
   generateQuiz: (articleId: string) => Promise<NewsQuiz>
   getCoverageComparison: (articleId: string) => Promise<CoverageComparison[]>
   initializeData: () => Promise<void>
-  trackInteraction: (articleId: string, type: string, metadata?: any) => Promise<void>
+  trackInteraction: (articleId: string, type: string, metadata?: InteractionMetadata) => Promise<void>
 }
 
-const NewsContext = createContext<NewsContextType | undefined>(undefined)
-
-export const useNews = () => {
-  const context = useContext(NewsContext)
-  if (!context) {
-    throw new Error('useNews must be used within a NewsProvider')
-  }
-  return context
-}
+export const NewsContext = createContext<NewsContextType | undefined>(undefined)
 
 interface NewsProviderProps {
   children: React.ReactNode
@@ -67,14 +58,16 @@ export const NewsProvider: React.FC<NewsProviderProps> = ({ children }) => {
     }
   }
 
-  const searchArticles = async (query: string, filters: any = {}) => {
+  const searchArticles = async (query: string, filters: ArticleFilters = {}) => {
     await searchArticlesApi(query, filters)
   }
 
-  const sendChatMessage = async (articleId: string, message: string, history: any[] = []): Promise<string> => {
+  const sendChatMessage = async (articleId: string, message: string, history: ChatMessage[] = []): Promise<string> => {
     try {
       const response = await aiApi.sendMessage(articleId, message, history)
-      return response.response
+      // Adjust to new shape { messages: ChatMessage[] }
+      const last = response.messages?.[response.messages.length - 1]
+      return last?.content || ''
     } catch (error) {
       console.error('Failed to send chat message:', error)
       return "I'm sorry, I'm having trouble responding right now. Please try again later."
@@ -83,7 +76,8 @@ export const NewsProvider: React.FC<NewsProviderProps> = ({ children }) => {
 
   const generateQuiz = async (articleId: string): Promise<NewsQuiz> => {
     try {
-      return await quizApi.generateQuiz(articleId)
+      const quiz = await quizApi.generateQuiz(articleId)
+      return { ...quiz, articleId }
     } catch (error) {
       console.error('Failed to generate quiz:', error)
       throw error
@@ -108,7 +102,7 @@ export const NewsProvider: React.FC<NewsProviderProps> = ({ children }) => {
     }
   }
 
-  const trackInteraction = async (articleId: string, type: string, metadata: any = {}) => {
+  const trackInteraction = async (articleId: string, type: string, metadata: InteractionMetadata = {}) => {
     try {
       await userApi.trackInteraction(articleId, type, metadata)
     } catch (error) {

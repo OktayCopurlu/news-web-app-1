@@ -1,11 +1,11 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { Clock, Eye, TrendingUp, Volume2 } from 'lucide-react';
-import { NewsArticle } from '../contexts/NewsContext';
-import { useUser } from '../contexts/UserContext';
+import type { ArticleDetail } from '../types/models';
+import { useUser } from '../contexts/useUser';
 
 interface NewsCardProps {
-  article: NewsArticle;
+  article: ArticleDetail;
   featured?: boolean;
 }
 
@@ -44,7 +44,7 @@ const NewsCard: React.FC<NewsCardProps> = ({ article, featured = false }) => {
         {/* Image */}
         <div className={`relative overflow-hidden ${featured ? 'h-48' : 'h-40'}`}>
           <img
-            src={article.image_url || article.imageUrl}
+            src={article.image_url || ''}
             alt={article.title}
             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
           />
@@ -53,7 +53,7 @@ const NewsCard: React.FC<NewsCardProps> = ({ article, featured = false }) => {
               {article.category}
             </span>
           </div>
-          {(article.audio_summary_url || article.audioSummary) && user?.preferences.audioPreferences && (
+          {article.audio_summary_url && user?.preferences.audioPreferences && (
             <div className="absolute top-3 right-3">
               <div className="bg-white dark:bg-gray-800 p-1.5 rounded-full shadow-sm">
                 <Volume2 className="w-3 h-3 text-blue-600" />
@@ -69,11 +69,11 @@ const NewsCard: React.FC<NewsCardProps> = ({ article, featured = false }) => {
             <div className="flex items-center space-x-3">
               <span className="flex items-center space-x-1">
                 <Clock className="w-3 h-3" />
-                <span>{formatDate(article.published_at || article.publishedAt)}</span>
+                <span>{formatDate(article.published_at)}</span>
               </span>
               <span className="flex items-center space-x-1">
                 <Eye className="w-3 h-3" />
-                <span>{article.reading_time || article.readingTime} min</span>
+                <span>{article.reading_time} min</span>
               </span>
             </div>
             <span className="text-blue-600 dark:text-blue-400 font-medium">

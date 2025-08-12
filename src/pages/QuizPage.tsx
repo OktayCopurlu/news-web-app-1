@@ -1,13 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { ArrowLeft, CheckCircle, XCircle, Award, RotateCcw } from 'lucide-react';
-import { useNews } from '../contexts/NewsContext';
+import { useNews } from '../contexts/useNews';
+import type { ArticleDetail, Quiz as QuizType } from '../types/models';
 
 const QuizPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const { articles } = useNews();
-  const [article, setArticle] = useState(null);
-  const [quiz, setQuiz] = useState(null);
+  const [article, setArticle] = useState<ArticleDetail | null>(null);
+  const [quiz, setQuiz] = useState<QuizType | null>(null);
   const [currentQuestion, setCurrentQuestion] = useState(0);
   const [answers, setAnswers] = useState<number[]>([]);
   const [showResults, setShowResults] = useState(false);
@@ -16,10 +17,10 @@ const QuizPage: React.FC = () => {
 
   useEffect(() => {
     if (id) {
-      const foundArticle = articles.find(a => a.id === id);
+      const foundArticle = articles.find(a => a.id === id) || null;
       setArticle(foundArticle);
-      if (foundArticle && foundArticle.quizzes && foundArticle.quizzes.length > 0) {
-        setQuiz(foundArticle.quizzes[0]);
+      if (foundArticle && Array.isArray(foundArticle.quizzes) && foundArticle.quizzes.length > 0) {
+        setQuiz(foundArticle.quizzes[0] as QuizType);
       }
     }
   }, [id, articles]);

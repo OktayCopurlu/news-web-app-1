@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { Search, Filter, Calendar, Folder } from 'lucide-react';
-import { useNews } from '../contexts/NewsContext';
+import { Search, Calendar, Folder } from 'lucide-react';
+import { useNews } from '../contexts/useNews';
 import NewsCard from '../components/NewsCard';
 
 const ArchivePage: React.FC = () => {
@@ -40,21 +40,21 @@ const ArchivePage: React.FC = () => {
     // Filter by timeframe
     if (selectedTimeframe !== 'all') {
       const now = new Date();
-      const articleDate = new Date();
-      
       filtered = filtered.filter(article => {
-        const publishedDate = new Date(article.publishedAt);
+        const publishedDate = new Date(article.published_at);
         switch (selectedTimeframe) {
-          case 'today':
+          case 'today': {
             return publishedDate.toDateString() === now.toDateString();
-          case 'week':
+          }
+          case 'week': {
             const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
             return publishedDate >= weekAgo;
-          case 'month':
+          }
+          case 'month': {
             const monthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
             return publishedDate >= monthAgo;
-          default:
-            return true;
+          }
+          default: return true;
         }
       });
     }

@@ -1,14 +1,14 @@
 import React from 'react';
 import { TrendingUp, Clock } from 'lucide-react';
-import { useNews } from '../contexts/NewsContext';
+import { useNews } from '../contexts/useNews';
 import NewsCard from './NewsCard';
 
 const TopHeadlines: React.FC = () => {
   const { articles } = useNews();
   
   // Get top 3 most recent articles
-  const topHeadlines = articles
-    .sort((a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime())
+  const topHeadlines = [...articles]
+    .sort((a, b) => new Date(b.published_at).getTime() - new Date(a.published_at).getTime())
     .slice(0, 3);
 
   return (

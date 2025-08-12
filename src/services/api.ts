@@ -1,377 +1,478 @@
-import { supabase } from '../lib/supabase'
+// Frontend requests go through the BFF only (no direct Supabase client).
+// Transitional monolith API facade – can be split into domain-specific modules later.
+import { apiFetch } from "../utils/fetcher";
+import { normalizeArticle } from "../utils/normalize";
+import type {
+  Quiz,
+  CoverageComparison,
+  UserProfileModel,
+} from "../types/models";
 
-// Fallback data for when Supabase is not connected
+// Local fallback sample data (dev/demo only)
+// Simple in-memory TTL cache (reset on reload)
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+interface CacheEntry {
+  value: any;
+  expires: number;
+}
+const _cache = new Map<string, CacheEntry>();
+const now = () => Date.now();
+const cache = {
+  get<T>(key: string): T | undefined {
+    const e = _cache.get(key);
+    if (!e) return undefined;
+    if (e.expires < now()) {
+      _cache.delete(key);
+      return undefined;
+    }
+    return e.value as T;
+  },
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  set(key: string, value: any, ttlMs: number) {
+    _cache.set(key, { value, expires: now() + ttlMs });
+  },
+  clear(prefix?: string) {
+    if (!prefix) return _cache.clear();
+    _cache.forEach((_, k) => {
+      if (k.startsWith(prefix)) _cache.delete(k);
+    });
+  },
+};
 const FALLBACK_ARTICLES = [
   {
-    id: '1',
-    title: "Major Breakthrough in Quantum Computing Achieved by International Research Team",
-    summary: "Scientists from MIT, Google, and several international universities have announced a significant breakthrough in quantum computing that could revolutionize data processing and encryption. The team successfully demonstrated a new quantum algorithm that can solve complex optimization problems exponentially faster than classical computers.",
+    id: "1",
+    title:
+      "Major Breakthrough in Quantum Computing Achieved by International Research Team",
+    summary:
+      "Scientists from MIT, Google, and several international universities have announced a significant breakthrough in quantum computing that could revolutionize data processing and encryption. The team successfully demonstrated a new quantum algorithm that can solve complex optimization problems exponentially faster than classical computers.",
     ai_explanation: null,
     explanation_generated: false,
     category: "Technology",
     language: "English",
     source: "TechCrunch",
     source_url: "https://example.com/quantum-breakthrough",
-    image_url: "https://images.pexels.com/photos/2599244/pexels-photo-2599244.jpeg",
+    image_url:
+      "https://images.pexels.com/photos/2599244/pexels-photo-2599244.jpeg",
     published_at: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
     reading_time: 5,
     tags: ["quantum computing", "technology", "breakthrough", "MIT", "Google"],
-    eli5_summary: "Scientists made computers that use special quantum rules work much better. These new computers can solve really hard math problems super fast!",
+    // Fallback sample articles used if BFF returns no data (dev/demo purposes only).
     audio_summary_url: null,
     audio_duration: 0,
     view_count: 1250,
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
-    article_analytics: [{
-      bias_score: 0.1,
-      bias_explanation: "Slightly positive coverage focusing on potential benefits",
-      bias_sources: ["AI Analysis", "Source Verification"],
-      sentiment_score: 0.7,
-      sentiment_label: "positive",
-      credibility_score: 0.9
-    }],
-    quizzes: [{
-      id: 'quiz-1',
-      questions: [
-        {
-          id: 'q1',
-          question: "What is the main breakthrough described in the article?",
-          options: [
-            "A new quantum algorithm for optimization problems",
-            "Room temperature superconductors",
-            "Faster internet speeds",
-            "Better smartphone batteries"
-          ],
-          correctAnswer: 0,
-          explanation: "The article specifically mentions a new quantum algorithm that can solve complex optimization problems exponentially faster than classical computers."
-        },
-        {
-          id: 'q2',
-          question: "Which institutions were involved in this research?",
-          options: [
-            "Only MIT",
-            "MIT, Google, and international universities",
-            "Google and Apple",
-            "NASA and SpaceX"
-          ],
-          correctAnswer: 1,
-          explanation: "The article states that scientists from MIT, Google, and several international universities collaborated on this breakthrough."
-        }
-      ],
-      difficulty: "intermediate"
-    }],
-    coverage_comparisons: [{
-      comparisons: [
-        {
-          source: "Tech Tribune",
-          perspective: "Focuses on the commercial implications and potential market disruption from quantum computing advances.",
-          bias: 0.3
-        },
-        {
-          source: "Science Daily",
-          perspective: "Emphasizes the scientific methodology and peer review process, highlighting the technical achievements.",
-          bias: 0.0
-        }
-      ]
-    }]
+    article_analytics: [
+      {
+        bias_score: 0.1,
+        bias_explanation:
+          "Slightly positive coverage focusing on potential benefits",
+        bias_sources: ["AI Analysis", "Source Verification"],
+        sentiment_score: 0.7,
+        sentiment_label: "positive",
+        credibility_score: 0.9,
+      },
+    ],
+    quizzes: [
+      {
+        id: "quiz-1",
+        questions: [
+          {
+            id: "q1",
+            question: "What is the main breakthrough described in the article?",
+            options: [
+              "A new quantum algorithm for optimization problems",
+              "Room temperature superconductors",
+              "Faster internet speeds",
+              "Better smartphone batteries",
+            ],
+            correctAnswer: 0,
+            explanation:
+              "The article specifically mentions a new quantum algorithm that can solve complex optimization problems exponentially faster than classical computers.",
+          },
+          {
+            id: "q2",
+            question: "Which institutions were involved in this research?",
+            options: [
+              "Only MIT",
+              "MIT, Google, and international universities",
+              "Google and Apple",
+              "NASA and SpaceX",
+            ],
+            correctAnswer: 1,
+            explanation:
+              "The article states that scientists from MIT, Google, and several international universities collaborated on this breakthrough.",
+          },
+        ],
+        difficulty: "intermediate",
+      },
+    ],
+    coverage_comparisons: [
+      {
+        comparisons: [
+          {
+            source: "Tech Tribune",
+            perspective:
+              "Focuses on the commercial implications and potential market disruption from quantum computing advances.",
+            bias: 0.3,
+          },
+          {
+            source: "Science Daily",
+            perspective:
+              "Emphasizes the scientific methodology and peer review process, highlighting the technical achievements.",
+            bias: 0.0,
+          },
+        ],
+      },
+    ],
   },
   {
-    id: '2',
-    title: "Global Climate Summit Reaches Historic Agreement on Carbon Reduction",
-    summary: "World leaders at the International Climate Summit have reached a groundbreaking agreement to reduce global carbon emissions by 60% over the next decade. The accord includes specific targets for renewable energy adoption and a $500 billion fund for clean energy infrastructure.",
+    id: "2",
+    title:
+      "Global Climate Summit Reaches Historic Agreement on Carbon Reduction",
+    summary:
+      "World leaders at the International Climate Summit have reached a groundbreaking agreement to reduce global carbon emissions by 60% over the next decade. The accord includes specific targets for renewable energy adoption and a $500 billion fund for clean energy infrastructure.",
     ai_explanation: null,
     explanation_generated: false,
     category: "Environment",
     language: "English",
     source: "Reuters",
     source_url: "https://example.com/climate-agreement",
-    image_url: "https://images.pexels.com/photos/1108572/pexels-photo-1108572.jpeg",
+    image_url:
+      "https://images.pexels.com/photos/1108572/pexels-photo-1108572.jpeg",
     published_at: new Date(Date.now() - 4 * 60 * 60 * 1000).toISOString(),
     reading_time: 6,
-    tags: ["climate change", "environment", "global summit", "carbon emissions", "renewable energy"],
-    eli5_summary: "Countries around the world promised to make much less pollution and use clean energy like solar and wind power to help save our planet!",
+    tags: [
+      "climate change",
+      "environment",
+      "global summit",
+      "carbon emissions",
+      "renewable energy",
+    ],
+    eli5_summary:
+      "Countries around the world promised to make much less pollution and use clean energy like solar and wind power to help save our planet!",
     audio_summary_url: null,
     audio_duration: 0,
     view_count: 2100,
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
-    article_analytics: [{
-      bias_score: -0.1,
-      bias_explanation: "Balanced reporting with slight emphasis on environmental benefits",
-      bias_sources: ["AI Analysis", "Source Verification"],
-      sentiment_score: 0.5,
-      sentiment_label: "positive",
-      credibility_score: 0.95
-    }],
-    quizzes: [{
-      id: 'quiz-2',
-      questions: [
-        {
-          id: 'q1',
-          question: "What is the target for carbon emission reduction?",
-          options: ["40% over the next decade", "50% over the next decade", "60% over the next decade", "70% over the next decade"],
-          correctAnswer: 2,
-          explanation: "The agreement aims to reduce global carbon emissions by 60% over the next decade."
-        },
-        {
-          id: 'q2',
-          question: "How much funding is allocated for clean energy infrastructure?",
-          options: ["$300 billion", "$400 billion", "$500 billion", "$600 billion"],
-          correctAnswer: 2,
-          explanation: "The accord includes a $500 billion fund for clean energy infrastructure development."
-        },
-        {
-          id: 'q3',
-          question: "What type of energy adoption does the agreement target?",
-          options: ["Nuclear energy", "Renewable energy", "Natural gas", "Coal with carbon capture"],
-          correctAnswer: 1,
-          explanation: "The agreement includes specific targets for renewable energy adoption like solar and wind power."
-        }
-      ],
-      difficulty: "intermediate"
-    }],
-    coverage_comparisons: [{
-      comparisons: [
-        {
-          source: "Environmental Herald",
-          perspective: "Celebrates the agreement as a historic victory for climate action and environmental protection.",
-          bias: 0.4
-        },
-        {
-          source: "Business Weekly",
-          perspective: "Focuses on economic implications and potential challenges for industries adapting to new regulations.",
-          bias: -0.2
-        }
-      ]
-    }]
-  }
-]
+    article_analytics: [
+      {
+        bias_score: -0.1,
+        bias_explanation:
+          "Balanced reporting with slight emphasis on environmental benefits",
+        bias_sources: ["AI Analysis", "Source Verification"],
+        sentiment_score: 0.5,
+        sentiment_label: "positive",
+        credibility_score: 0.95,
+      },
+    ],
+    quizzes: [
+      {
+        id: "quiz-2",
+        questions: [
+          {
+            id: "q1",
+            question: "What is the target for carbon emission reduction?",
+            options: [
+              "40% over the next decade",
+              "50% over the next decade",
+              "60% over the next decade",
+              "70% over the next decade",
+            ],
+            correctAnswer: 2,
+            explanation:
+              "The agreement aims to reduce global carbon emissions by 60% over the next decade.",
+          },
+          {
+            id: "q2",
+            question:
+              "How much funding is allocated for clean energy infrastructure?",
+            options: [
+              "$300 billion",
+              "$400 billion",
+              "$500 billion",
+              "$600 billion",
+            ],
+            correctAnswer: 2,
+            explanation:
+              "The accord includes a $500 billion fund for clean energy infrastructure development.",
+          },
+          {
+            id: "q3",
+            question: "What type of energy adoption does the agreement target?",
+            options: [
+              "Nuclear energy",
+              "Renewable energy",
+              "Natural gas",
+              "Coal with carbon capture",
+            ],
+            correctAnswer: 1,
+            explanation:
+              "The agreement includes specific targets for renewable energy adoption like solar and wind power.",
+          },
+        ],
+        difficulty: "intermediate",
+      },
+    ],
+    coverage_comparisons: [
+      {
+        comparisons: [
+          {
+            source: "Environmental Herald",
+            perspective:
+              "Celebrates the agreement as a historic victory for climate action and environmental protection.",
+            bias: 0.4,
+          },
+          {
+            source: "Business Weekly",
+            perspective:
+              "Focuses on economic implications and potential challenges for industries adapting to new regulations.",
+            bias: -0.2,
+          },
+        ],
+      },
+    ],
+  },
+];
 
-const API_BASE = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1`
+// BFF base resolved centrally (CONFIG in fetcher); inline constant removed.
 
-// Helper function to get auth headers
-const getAuthHeaders = async () => {
-  return {
-    'Content-Type': 'application/json',
-    'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`
+// Inline normalizer & header helper removed (shared utilities now used).
+
+let fallbackNotified = false;
+function notifyFallback(reason: string) {
+  if (!fallbackNotified && typeof window !== "undefined") {
+    // Dispatch custom event for toast layer
+    window.dispatchEvent(
+      new CustomEvent("bff-fallback", { detail: { reason } })
+    );
+    console.warn("[BFF Fallback] Using local sample data:", reason);
+    fallbackNotified = true;
   }
 }
 
 export const newsApi = {
   // Fetch all articles
   getArticles: async () => {
-    const headers = await getAuthHeaders()
-    const response = await fetch(`${API_BASE}/news-processor/articles`, { headers })
-    if (!response.ok) throw new Error('Failed to fetch articles')
-    return response.json()
+    if (cache.get("articles")) return cache.get("articles");
+    // Prefer BFF for article list; fallback to Edge Function if it fails
+    try {
+      const data = await apiFetch<unknown[]>({ path: "/articles" });
+      const list = Array.isArray(data)
+        ? data.map((d) => {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            return normalizeArticle(d as any);
+          })
+        : [];
+      cache.set("articles", list, 60_000);
+      return list;
+    } catch {
+      notifyFallback("articles fetch failed");
+      const list = FALLBACK_ARTICLES.map(
+        (a) =>
+          ({
+            ...normalizeArticle(a),
+            __origin: "fallback",
+          } as unknown as ReturnType<typeof normalizeArticle>)
+      );
+      cache.set("articles", list, 30_000);
+      return list;
+    }
   },
 
   // Get specific article
   getArticle: async (id: string) => {
-    const headers = await getAuthHeaders()
-    const response = await fetch(`${API_BASE}/news-processor/articles/${id}`, { headers })
-    if (!response.ok) throw new Error('Failed to fetch article')
-    return response.json()
+    const a = cache.get(`article:${id}`);
+    if (a) return a;
+    try {
+      const data = await apiFetch<unknown>({ path: `/articles/${id}` });
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const art = normalizeArticle(data as any);
+      cache.set(`article:${id}`, art, 120_000);
+      return art;
+    } catch {
+      const fallback = FALLBACK_ARTICLES.find((a) => a.id === id);
+      if (!fallback) throw new Error("Article not found");
+      notifyFallback("article fetch failed");
+      const art = {
+        ...normalizeArticle(fallback),
+        __origin: "fallback",
+      } as unknown as ReturnType<typeof normalizeArticle>;
+      cache.set(`article:${id}`, art, 60_000);
+      return art;
+    }
   },
 
   // Generate AI explanation for article
   generateExplanation: async (id: string) => {
-    const headers = await getAuthHeaders()
-    const response = await fetch(`${API_BASE}/news-processor/articles/${id}/explanation`, {
-      method: 'POST',
-      headers
-    })
-    if (!response.ok) throw new Error('Failed to generate explanation')
-    return response.json()
+    // Still relies on Edge Function (BFF route not implemented yet)
+    return apiFetch<{ explanation: string }>({
+      path: `/articles/${id}/explanation`,
+      method: "POST",
+    });
   },
 
   // Create new article
-  createArticle: async (articleData: any) => {
-    const headers = await getAuthHeaders()
-    const response = await fetch(`${API_BASE}/news-processor/articles`, {
-      method: 'POST',
-      headers,
-      body: JSON.stringify(articleData)
-    })
-    if (!response.ok) throw new Error('Failed to create article')
-    return response.json()
+  createArticle: async () => {
+    throw new Error("Article creation not supported in BFF demo");
   },
 
   // Search articles
-  searchArticles: async (query: string, filters: { category?: string; language?: string } = {}) => {
-    const params = new URLSearchParams({ q: query, ...filters })
-    const headers = await getAuthHeaders()
-    const response = await fetch(`${API_BASE}/news-aggregator/search?${params}`, { headers })
-    if (!response.ok) throw new Error('Failed to search articles')
-    return response.json()
+  searchArticles: async (query: string) => {
+    return FALLBACK_ARTICLES.filter((a) =>
+      a.title.toLowerCase().includes(query.toLowerCase())
+    );
   },
 
   // Fetch and process new articles
   fetchNews: async () => {
-    const headers = await getAuthHeaders()
-    const response = await fetch(`${API_BASE}/news-aggregator/fetch-news`, {
-      method: 'POST',
-      headers
-    })
-    if (!response.ok) throw new Error('Failed to fetch news')
-    return response.json()
+    return { status: "noop" };
   },
 
   // Get trending topics
   getTrending: async () => {
-    const headers = await getAuthHeaders()
-    const response = await fetch(`${API_BASE}/news-aggregator/trending`, { headers })
-    if (!response.ok) throw new Error('Failed to fetch trending topics')
-    return response.json()
-  }
-}
+    return [];
+  },
+};
 
 export const aiApi = {
   // Send chat message
-  sendMessage: async (articleId: string, message: string, chatHistory: any[] = []) => {
-    try {
-      const headers = await getAuthHeaders()
-      const { data: { user } } = await supabase.auth.getUser()
-      
-      const response = await fetch(`${API_BASE}/ai-chat/chat`, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify({
-          articleId,
-          message,
-          chatHistory,
-          userId: user?.id
-        })
-      })
-      
-      if (!response.ok) {
-        const errorText = await response.text()
-        console.error('AI Chat API Error:', response.status, errorText)
-        throw new Error(`AI Chat API Error: ${response.status} - ${errorText}`)
-      }
-      
-      return response.json()
-    } catch (error) {
-      console.error('AI Chat Error:', error)
-      throw error
-    }
+  sendMessage: async (
+    articleId: string,
+    message: string,
+    chatHistory: Array<{
+      id?: string;
+      type?: string;
+      content: string;
+      timestamp?: string;
+    }> = []
+  ) => {
+    return apiFetch<{
+      messages: {
+        id?: string;
+        type?: string;
+        content: string;
+        timestamp?: string;
+      }[];
+    }>({
+      path: `/chat/${articleId}`,
+      method: "POST",
+      body: { message, chatHistory },
+    });
   },
 
   // Get chat history
   getChatHistory: async (articleId: string) => {
-    const headers = await getAuthHeaders()
-    const response = await fetch(`${API_BASE}/ai-chat/chat/${articleId}`, { headers })
-    if (!response.ok) throw new Error('Failed to get chat history')
-    return response.json()
-  }
-}
+    return apiFetch<{
+      messages: {
+        id?: string;
+        type?: string;
+        content: string;
+        timestamp?: string;
+      }[];
+    }>({ path: `/chat/${articleId}` });
+  },
+};
 
 export const quizApi = {
   // Generate quiz for article
-  generateQuiz: async (articleId: string, difficulty: string = 'intermediate') => {
-    const headers = await getAuthHeaders()
-    const response = await fetch(`${API_BASE}/quiz-generator/generate`, {
-      method: 'POST',
-      headers,
-      body: JSON.stringify({ articleId, difficulty })
-    })
-    if (!response.ok) throw new Error('Failed to generate quiz')
-    return response.json()
+  generateQuiz: async (
+    articleId: string,
+    difficulty: string = "intermediate"
+  ) => {
+    return apiFetch<Quiz>({
+      path: `/articles/${articleId}/quiz`,
+      method: "POST",
+      body: { difficulty },
+    });
   },
 
   // Get quiz for article
   getQuiz: async (articleId: string) => {
-    const headers = await getAuthHeaders()
-    const response = await fetch(`${API_BASE}/quiz-generator/quiz/${articleId}`, { headers })
-    if (!response.ok) throw new Error('Failed to get quiz')
-    return response.json()
-  }
-}
+    return apiFetch<Quiz>({ path: `/articles/${articleId}/quiz` });
+  },
+};
 
 export const coverageApi = {
   // Generate coverage comparison
   analyzeCoverage: async (articleId: string) => {
-    const headers = await getAuthHeaders()
-    const response = await fetch(`${API_BASE}/coverage-analyzer/analyze`, {
-      method: 'POST',
-      headers,
-      body: JSON.stringify({ articleId })
-    })
-    if (!response.ok) throw new Error('Failed to analyze coverage')
-    return response.json()
+    return apiFetch<CoverageComparison>({
+      path: `/articles/${articleId}/coverage`,
+      method: "POST",
+    });
   },
 
   // Get coverage comparison
   getCoverage: async (articleId: string) => {
-    const headers = await getAuthHeaders()
-    const response = await fetch(`${API_BASE}/coverage-analyzer/comparison/${articleId}`, { headers })
-    if (!response.ok) throw new Error('Failed to get coverage comparison')
-    return response.json()
-  }
-}
+    return apiFetch<CoverageComparison>({
+      path: `/articles/${articleId}/coverage`,
+    });
+  },
+};
 
 export const userApi = {
   // Register new user
-  register: async (userData: { email: string; password: string; name: string; preferences: any }) => {
-    const response = await fetch(`${API_BASE}/user-management/register`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(userData)
-    })
-    if (!response.ok) throw new Error('Failed to register user')
-    return response.json()
+  register: async (userData: {
+    email: string;
+    password: string;
+    name: string;
+    preferences: Record<string, unknown>;
+  }) => {
+    const data = await apiFetch<UserProfileModel & { token?: string }>({
+      path: "/auth/register",
+      method: "POST",
+      body: userData,
+    });
+    const { token, ...user } = data as unknown as UserProfileModel & {
+      token?: string;
+    };
+    if (token) localStorage.setItem("auth_token", token);
+    return { user, token };
   },
 
   // Login user
   login: async (email: string, password: string) => {
-    const response = await fetch(`${API_BASE}/user-management/login`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password })
-    })
-    if (!response.ok) throw new Error('Failed to login')
-    return response.json()
+    const data = await apiFetch<UserProfileModel & { token?: string }>({
+      path: "/auth/login",
+      method: "POST",
+      body: { email, password },
+    });
+    const { token, ...user } = data as unknown as UserProfileModel & {
+      token?: string;
+    };
+    if (token) localStorage.setItem("auth_token", token);
+    return { user, token };
   },
 
   // Update user preferences
-  updatePreferences: async (preferences: any) => {
-    const headers = await getAuthHeaders()
-    const response = await fetch(`${API_BASE}/user-management/preferences`, {
-      method: 'PUT',
-      headers,
-      body: JSON.stringify({ preferences })
-    })
-    if (!response.ok) throw new Error('Failed to update preferences')
-    return response.json()
+  updatePreferences: async (preferences: Record<string, unknown>) => {
+    return apiFetch<UserProfileModel>({
+      path: "/auth/preferences",
+      method: "PUT",
+      body: { preferences },
+    });
   },
 
   // Get user profile
   getProfile: async () => {
-    const headers = await getAuthHeaders()
-    const response = await fetch(`${API_BASE}/user-management/profile`, { headers })
-    if (!response.ok) throw new Error('Failed to get profile')
-    return response.json()
+    return apiFetch<UserProfileModel>({ path: "/auth/profile" });
   },
 
   // Track interaction
-  trackInteraction: async (articleId: string, interactionType: string, metadata: any = {}) => {
+  trackInteraction: async (
+    articleId: string,
+    interactionType: string,
+    metadata: Record<string, unknown> = {}
+  ) => {
     try {
-      const headers = await getAuthHeaders()
-      const response = await fetch(`${API_BASE}/user-management/interaction`, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify({ articleId, interactionType, metadata })
-      })
-      
-      if (!response.ok) {
-        console.warn('Failed to track interaction:', response.status, response.statusText)
-        return { success: false }
-      }
-      
-      return await response.json()
-    } catch (error) {
-      console.warn('Failed to track interaction:', error)
-      return { success: false }
+      return await apiFetch<{ success: boolean }>({
+        path: "/interaction",
+        method: "POST",
+        body: { articleId, interactionType, metadata },
+      });
+    } catch {
+      return { success: false };
     }
-  }
-}
+  },
+};

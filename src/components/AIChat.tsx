@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
 import { Send, Bot, User, Loader } from 'lucide-react';
-import { useNews } from '../contexts/NewsContext';
+import { useNews } from '../contexts/useNews';
 
-interface AIChatProps {
-  article: any;
-}
+import type { ArticleDetail } from '../types/models';
+
+interface AIChatProps { article: Pick<ArticleDetail, 'id' | 'title'> }
 
 interface ChatMessage {
   id: string;

@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { Search, Menu, X, Sun, Moon, Globe, User, Bell } from 'lucide-react';
-import { useTheme } from '../contexts/ThemeContext';
-import { useUser } from '../contexts/UserContext';
-import { useNews } from '../contexts/NewsContext';
+import { useTheme } from '../contexts/useTheme';
+import { useUser } from '../contexts/useUser';
+import { useNews } from '../contexts/useNews';
 
 const Header: React.FC = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -12,7 +12,6 @@ const Header: React.FC = () => {
   const { isDark, toggleTheme } = useTheme();
   const { user } = useUser();
   const { searchArticles } = useNews();
-  const navigate = useNavigate();
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();

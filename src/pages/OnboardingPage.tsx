@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ChevronRight, ChevronLeft, Check, Globe, BookOpen, Volume2 } from 'lucide-react';
-import { useUser } from '../contexts/UserContext';
+import { useUser } from '../contexts/useUser';
 
 const OnboardingPage: React.FC = () => {
   const [currentStep, setCurrentStep] = useState(0);
@@ -14,7 +14,7 @@ const OnboardingPage: React.FC = () => {
     audioPreferences: false,
     biasAnalysis: true
   });
-  const { setUser } = useUser();
+  const { user, updatePreferences } = useUser();
   const navigate = useNavigate();
 
   const steps = [
@@ -49,21 +49,16 @@ const OnboardingPage: React.FC = () => {
   };
 
   const handleComplete = () => {
-    const newUser = {
-      id: Date.now().toString(),
-      name: formData.name,
-      email: formData.email,
-      preferences: {
+    // Persist preferences if signed in; otherwise just navigate
+    if(user){
+      updatePreferences({
         topics: formData.topics,
         languages: formData.languages,
         readingLevel: formData.readingLevel,
         audioPreferences: formData.audioPreferences,
         biasAnalysis: formData.biasAnalysis
-      },
-      onboardingComplete: true
-    };
-    
-    setUser(newUser);
+      }).catch(e=>console.warn('Preference update failed', e));
+    }
     navigate('/');
   };
 
@@ -240,7 +235,7 @@ const OnboardingPage: React.FC = () => {
                     ].map((level) => (
                       <button
                         key={level.value}
-                        onClick={() => setFormData(prev => ({ ...prev, readingLevel: level.value as any }))}
+                        onClick={() => setFormData(prev => ({ ...prev, readingLevel: level.value as 'beginner' | 'intermediate' | 'advanced' }))}
                         className={`w-full p-3 rounded-lg border text-left transition-all ${
                           formData.readingLevel === level.value
                             ? 'bg-blue-50 dark:bg-blue-900/20 border-blue-300 dark:border-blue-700'

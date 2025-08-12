@@ -1,14 +1,13 @@
 import React, { useState, useEffect } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { useNews } from '../contexts/NewsContext'
-import { useUser } from '../contexts/UserContext'
+import { useNews } from '../contexts/useNews'
+import { useUser } from '../contexts/useUser'
 import { Search } from 'lucide-react'
 import NewsCard from '../components/NewsCard'
 import CategoryFilter from '../components/CategoryFilter'
 import PersonalizationBanner from '../components/PersonalizationBanner'
 import TopHeadlines from '../components/TopHeadlines'
 import TrendingTopics from '../components/TrendingTopics'
-import AdminPanel from '../components/AdminPanel'
 
 const HomePage: React.FC = () => {
   const [searchParams] = useSearchParams()

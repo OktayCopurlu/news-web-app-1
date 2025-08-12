@@ -1,9 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import type { ArticleDetail } from '../types/models';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { Clock, Share2, Bookmark, MessageCircle, BarChart3, Eye, Brain, ArrowLeft, Loader } from 'lucide-react';
-import { useNews } from '../contexts/NewsContext';
-import { useUser } from '../contexts/UserContext';
-import { newsApi } from '../services/api';
+import { useNews } from '../contexts/useNews';
+import { useUser } from '../contexts/useUser';
+import { newsApi, quizApi, coverageApi } from '../services/api';
 import BiasIndicator from '../components/BiasIndicator';
 import CoverageComparison from '../components/CoverageComparison';
 import AIChat from '../components/AIChat';
@@ -14,7 +15,7 @@ const NewsDetailPage: React.FC = () => {
   const navigate = useNavigate();
   const { getArticleById } = useNews();
   const { user } = useUser();
-  const [article, setArticle] = useState<any>(null);
+  const [article, setArticle] = useState<ArticleDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [generatingExplanation, setGeneratingExplanation] = useState(false);
@@ -26,6 +27,8 @@ const NewsDetailPage: React.FC = () => {
   const [generatingQuiz, setGeneratingQuiz] = useState(false);
   const [generatingCoverage, setGeneratingCoverage] = useState(false);
   const [autoGeneratingExplanation, setAutoGeneratingExplanation] = useState(false);
+  // Prevent infinite retry loops if the explanation endpoint keeps failing
+  const explanationAttemptedRef = useRef(false);
 
   useEffect(() => {
     const fetchArticle = async () => {
@@ -45,43 +48,44 @@ const NewsDetailPage: React.FC = () => {
     };
 
     fetchArticle();
-  }, [id]);
+  }, [id, getArticleById]);
 
   // Auto-generate explanation when article loads
   useEffect(() => {
     const autoGenerateExplanation = async () => {
-      if (article && !article.ai_explanation && !article.explanation_generated) {
-        try {
-          setAutoGeneratingExplanation(true);
-          const response = await newsApi.generateExplanation(article.id);
-          setArticle(prev => ({
-            ...prev,
-            ai_explanation: response.explanation,
-            explanation_generated: true
-          }));
-        } catch (err) {
-          console.error('Failed to auto-generate explanation:', err);
-        } finally {
-          setAutoGeneratingExplanation(false);
-        }
+      if (!article) return;
+      if (explanationAttemptedRef.current) return; // already tried once
+      if (article.ai_explanation || article.explanation_generated) return;
+      explanationAttemptedRef.current = true; // mark attempt to avoid loops
+      try {
+        setAutoGeneratingExplanation(true);
+        const response = await newsApi.generateExplanation(article.id);
+        setArticle(prev => prev ? ({
+          ...prev,
+          ai_explanation: response.explanation,
+          explanation_generated: true
+        }) : prev);
+      } catch (err) {
+        console.error('Failed to auto-generate explanation:', err);
+        // Mark as generated (false explanation) to prevent repeated attempts
+        setArticle(prev => prev ? ({ ...prev, explanation_generated: true }) : prev);
+      } finally {
+        setAutoGeneratingExplanation(false);
       }
     };
-
-    if (article) {
-      autoGenerateExplanation();
-    }
-  }, [article?.id]);
+    autoGenerateExplanation();
+  }, [article]);
   const handleGenerateExplanation = async () => {
     if (!article || generatingExplanation) return;
     
     try {
       setGeneratingExplanation(true);
       const response = await newsApi.generateExplanation(article.id);
-      setArticle(prev => ({
-        ...prev,
-        ai_explanation: response.explanation,
-        explanation_generated: true
-      }));
+          setArticle(prev => prev ? ({
+            ...prev,
+            ai_explanation: response.explanation,
+            explanation_generated: true
+          }) : prev);
     } catch (err) {
       console.error('Failed to generate explanation:', err);
       setError('Failed to generate AI explanation. Please check if the AI service is properly configured.');
@@ -99,20 +103,12 @@ const NewsDetailPage: React.FC = () => {
       // Generate ELI5 summary using AI
       setGeneratingELI5(true);
       try {
-        const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/news-processor/articles/${article.id}/eli5`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`
-          }
-        });
-        
-        if (response.ok) {
-          const data = await response.json();
-          setArticle(prev => ({
-            ...prev,
-            eli5_summary: data.eli5_summary
-          }));
+  const envMeta = (import.meta as unknown as { env?: Record<string,string> });
+  const base = envMeta.env?.VITE_BFF_URL || 'http://localhost:4000';
+  const resp = await fetch(`${base}/articles/${article.id}/eli5`, { method:'POST', headers:{'Content-Type':'application/json'} });
+        if(resp.ok){
+          const data = await resp.json();
+          setArticle((prev) => prev ? ({ ...prev, eli5_summary: data.eli5_summary }) : prev);
           setShowELI5(true);
         }
       } catch (err) {
@@ -134,23 +130,9 @@ const NewsDetailPage: React.FC = () => {
       // Generate quiz using AI
       setGeneratingQuiz(true);
       try {
-        const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/quiz-generator/generate`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`
-          },
-          body: JSON.stringify({ articleId: article.id })
-        });
-        
-        if (response.ok) {
-          const quizData = await response.json();
-          setArticle(prev => ({
-            ...prev,
-            quizzes: [quizData]
-          }));
-          navigate(`/quiz/${article.id}`);
-        }
+        const quizData = await quizApi.generateQuiz(article.id);
+  setArticle(prev => prev ? ({ ...prev, quizzes: [quizData] }) : prev);
+        navigate(`/quiz/${article.id}`);
       } catch (err) {
         console.error('Failed to generate quiz:', err);
       } finally {
@@ -169,23 +151,9 @@ const NewsDetailPage: React.FC = () => {
       // Generate coverage comparison using AI
       setGeneratingCoverage(true);
       try {
-        const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/coverage-analyzer/analyze`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`
-          },
-          body: JSON.stringify({ articleId: article.id })
-        });
-        
-        if (response.ok) {
-          const coverageData = await response.json();
-          setArticle(prev => ({
-            ...prev,
-            coverage_comparisons: [coverageData]
-          }));
-          setShowCoverage(true);
-        }
+        const coverageData = await coverageApi.analyzeCoverage(article.id);
+  setArticle(prev => prev ? ({ ...prev, coverage_comparisons: [coverageData] }) : prev);
+        setShowCoverage(true);
       } catch (err) {
         console.error('Failed to generate coverage comparison:', err);
       } finally {
@@ -247,7 +215,7 @@ const NewsDetailPage: React.FC = () => {
   };
 
   // Get quiz data with fallback
-  const quiz = article.quizzes?.[0];
+  // const quiz = article.quizzes?.[0]; // unused
 
   // Get coverage comparison with fallback
   const coverageComparison = article.coverage_comparisons?.[0]?.comparisons || [];
@@ -269,7 +237,7 @@ const NewsDetailPage: React.FC = () => {
           {/* Hero Image */}
           <div className="relative h-64 sm:h-80">
             <img
-              src={article.image_url}
+              src={article.image_url || ''}
               alt={article.title}
               className="w-full h-full object-cover"
             />
@@ -279,7 +247,7 @@ const NewsDetailPage: React.FC = () => {
                 <span className="bg-blue-600 px-2 py-1 rounded text-xs font-medium">
                   {article.category}
                 </span>
-                <span>{formatDate(article.publishedAt)}</span>
+                <span>{formatDate(article.published_at)}</span>
               </div>
               <h1 className="text-2xl sm:text-3xl font-bold text-white leading-tight">
                 {article.title}
@@ -301,7 +269,7 @@ const NewsDetailPage: React.FC = () => {
               <div className="flex items-center space-x-2">
                 {/* Audio Player */}
                 {article.audio_summary_url && (
-                  <AudioPlayer audioUrl={article.audio_summary_url} duration={article.audio_duration} />
+                  <AudioPlayer audioUrl={article.audio_summary_url} duration={article.audio_duration || 0} />
                 )}
                 
                 <button
@@ -429,19 +397,7 @@ const NewsDetailPage: React.FC = () => {
             {/* AI Chat */}
             {showChat && (
               <div className="mb-8">
-                <AIChat article={{
-                  ...article,
-                  bias: {
-                    score: analytics.bias_score,
-                    explanation: analytics.bias_explanation,
-                    sources: analytics.bias_sources
-                  },
-                  sentiment: {
-                    score: analytics.sentiment_score,
-                    label: analytics.sentiment_label
-                  },
-                  coverageComparison: coverageComparison
-                }} />
+                <AIChat article={{ id: article.id, title: article.title }} />
               </div>
             )}
 
@@ -496,7 +452,7 @@ const NewsDetailPage: React.FC = () => {
             <div className="mt-8 pt-6 border-t border-gray-200 dark:border-gray-700">
               <h3 className="text-sm font-medium text-gray-900 dark:text-white mb-3">Tags</h3>
               <div className="flex flex-wrap gap-2">
-                {article.tags?.map((tag) => (
+                {article.tags?.map((tag: string) => (
                   <span
                     key={tag}
                     className="px-3 py-1 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-full text-sm"

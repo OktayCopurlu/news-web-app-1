@@ -7,10 +7,16 @@
     "dev": "vite",
     "build": "vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "typecheck": "tsc --noEmit",
+    "check": "npm run typecheck && npm run lint",
+    "preview": "vite preview",
+    "test:prepare": "node -e \"const fs=require('fs');fs.mkdirSync('dist-tests',{recursive:true});fs.writeFileSync('dist-tests/package.json','{\\n\\\"type\\\": \\\"commonjs\\\"\\n}');\"",
+    "test:unit": "rimraf dist-tests && tsc -p tsconfig.tests.json && npm run test:prepare && node dist-tests/tests/unit/run-tests.js",
+    "test:e2e": "node tests/e2e/bff-connection.test.mjs && node tests/e2e/bff-smoke.test.mjs",
+    "test": "npm run test:unit && npm run test:e2e",
+    "guard:no-supabase": "grep -R '\\bsupabase\\b' src || echo 'No supabase references'"
   },
   "dependencies": {
-    "@supabase/supabase-js": "^2.54.0",
     "lucide-react": "^0.344.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
@@ -30,6 +36,8 @@
     "tailwindcss": "^3.4.1",
     "typescript": "^5.5.3",
     "typescript-eslint": "^8.3.0",
+    "ts-node": "^10.9.2",
+    "rimraf": "^5.0.5",
     "vite": "^5.4.2"
   }
 }

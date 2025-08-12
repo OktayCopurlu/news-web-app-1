@@ -1,0 +1,16 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "module": "CommonJS",
+    "outDir": "dist-tests",
+    "moduleResolution": "Node",
+    "esModuleInterop": true,
+    "allowJs": false
+  },
+  "include": [
+    "tests/unit/**/*.ts",
+    "src/utils/normalize.ts",
+    "src/utils/fetcher.ts"
+  ],
+  "exclude": []
+}
