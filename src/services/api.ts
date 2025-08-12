@@ -10,7 +10,7 @@ import type {
 
 // Local fallback sample data (dev/demo only)
 // Simple in-memory TTL cache (reset on reload)
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+
 interface CacheEntry {
   value: any;
   expires: number;
@@ -265,7 +265,9 @@ export const newsApi = {
             return normalizeArticle(d as any);
           })
         : [];
-      cache.set("articles", list, 60_000);
+      // If we got an unexpectedly tiny list, avoid long caching so we can recover quickly after backend restarts.
+      const ttl = list.length < 5 ? 5_000 : 60_000;
+      cache.set("articles", list, ttl);
       return list;
     } catch {
       notifyFallback("articles fetch failed");

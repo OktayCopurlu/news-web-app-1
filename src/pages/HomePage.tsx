@@ -15,11 +15,55 @@ const HomePage: React.FC = () => {
   const { user } = useUser()
   const [filteredArticles, setFilteredArticles] = useState(articles)
   const [selectedCategory, setSelectedCategory] = useState('all')
+  const [uiCategories, setUiCategories] = useState<{id:string;name:string;emoji?:string;count:number}[]>([])
 
   useEffect(() => {
     const category = searchParams.get('category') || 'all'
     setSelectedCategory(category)
-    
+
+    // derive dynamic categories from article.category + tag hierarchies
+    const counts = new Map<string, number>()
+    const inc = (key: string | undefined) => {
+      if (!key) return
+      const k = key.toLowerCase()
+      counts.set(k, (counts.get(k) || 0) + 1)
+    }
+    articles.forEach(a => {
+      if (a.category) {
+        const parts = a.category.split('.')
+        // accumulate hierarchical prefixes
+        for (let i=1;i<=parts.length;i++) inc(parts.slice(0,i).join('.'))
+      }
+      a.tags?.forEach(t => {
+        const segs = t.split('.')
+        for (let i=1;i<=segs.length;i++) inc(segs.slice(0,i).join('.'))
+      })
+    })
+    const label = (id: string) => {
+      if (id === 'general') return 'General'
+      if (id === 'sports') return 'Sports'
+      if (id === 'sports.football') return 'Football'
+      if (id.startsWith('sports.transfer')) return 'Transfers'
+      if (id === 'geo') return 'World'
+      if (id === 'geo.uk') return 'UK'
+      if (id === 'geo.uk.london') return 'London'
+      return id.replace(/\./g, ' › ')
+    }
+    const emoji = (id: string) => {
+      if (id.startsWith('sports.football')) return '⚽'
+      if (id === 'sports') return '🏅'
+      if (id.startsWith('geo.uk.london')) return '🏙️'
+      if (id.startsWith('geo.uk')) return '🇬🇧'
+      if (id.startsWith('geo')) return '🌍'
+      if (id.startsWith('sports.transfer')) return '🔁'
+      return undefined
+    }
+    const dynamicCats = Array.from(counts.entries())
+      .sort((a,b) => b[1]-a[1])
+      .slice(0,25)
+      .map(([id,count]) => ({ id, name: label(id), emoji: emoji(id), count }))
+    setUiCategories([{id:'all', name:'All', emoji:'📰', count: articles.length}, ...dynamicCats])
+
     if (category === 'all') {
       // Sort by user preferences if available
       if (user?.preferences.topics.length) {
@@ -40,9 +84,18 @@ const HomePage: React.FC = () => {
         setFilteredArticles(articles)
       }
     } else {
-      const filtered = articles.filter(article => 
-        article.category.toLowerCase() === category.toLowerCase()
-      )
+      const sel = category.toLowerCase()
+      const filtered = articles.filter(article => {
+        const baseCat = article.category?.toLowerCase() || ''
+        if (baseCat === sel || baseCat.startsWith(sel + '.')) return true
+        if (article.tags && article.tags.length) {
+          return article.tags.some(t => {
+            const lower = t.toLowerCase()
+            return lower === sel || lower.startsWith(sel + '.')
+          })
+        }
+        return false
+      })
       setFilteredArticles(filtered)
     }
   }, [searchParams, articles, user])
@@ -100,6 +153,7 @@ const HomePage: React.FC = () => {
                 <CategoryFilter 
                   selectedCategory={selectedCategory}
                   onCategoryChange={setSelectedCategory}
+                  categories={uiCategories}
                 />
                 
                 {/* News Grid */}

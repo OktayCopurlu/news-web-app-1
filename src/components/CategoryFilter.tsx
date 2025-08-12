@@ -1,27 +1,35 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 
+interface UICategory {
+  id: string;
+  name: string;
+  emoji?: string;
+  count?: number;
+}
+
 interface CategoryFilterProps {
   selectedCategory: string;
   onCategoryChange: (category: string) => void;
+  categories?: UICategory[]; // optional dynamic list
 }
 
-const categories = [
+// Fallback base list if dynamic categories not provided
+const DEFAULT_CATEGORIES: UICategory[] = [
   { id: 'all', name: 'All', emoji: '📰' },
-  { id: 'technology', name: 'Technology', emoji: '💻' },
-  { id: 'health', name: 'Health', emoji: '🏥' },
-  { id: 'environment', name: 'Environment', emoji: '🌍' },
-  { id: 'finance', name: 'Finance', emoji: '💰' },
-  { id: 'space', name: 'Space', emoji: '🚀' },
-  { id: 'cybersecurity', name: 'Security', emoji: '🔒' },
-  { id: 'transportation', name: 'Transport', emoji: '🚗' },
-  { id: 'agriculture', name: 'Agriculture', emoji: '🌾' }
+  { id: 'general', name: 'General', emoji: '📌' },
+  { id: 'world', name: 'World', emoji: '🌍' },
+  { id: 'uk', name: 'UK', emoji: '🇬🇧' },
+  { id: 'sports', name: 'Sports', emoji: '🏅' },
+  { id: 'football', name: 'Football', emoji: '⚽' },
+  { id: 'transfers', name: 'Transfers', emoji: '🔁' },
 ];
 
-const CategoryFilter: React.FC<CategoryFilterProps> = ({ selectedCategory, onCategoryChange }) => {
+const CategoryFilter: React.FC<CategoryFilterProps> = ({ selectedCategory, onCategoryChange, categories }) => {
+  const list = categories && categories.length ? categories : DEFAULT_CATEGORIES;
   return (
     <div className="flex items-center space-x-2 overflow-x-auto pb-2">
-      {categories.map((category) => (
+      {list.map((category) => (
         <Link
           key={category.id}
           to={`/?category=${category.id}`}
@@ -32,8 +40,13 @@ const CategoryFilter: React.FC<CategoryFilterProps> = ({ selectedCategory, onCat
               : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-700 hover:bg-blue-50 dark:hover:bg-gray-700'
           }`}
         >
-          <span>{category.emoji}</span>
-          <span className="text-sm font-medium">{category.name}</span>
+          {category.emoji && <span>{category.emoji}</span>}
+          <span className="text-sm font-medium">
+            {category.name}
+            {typeof category.count === 'number' && category.id !== 'all' && (
+              <span className="ml-1 text-xs opacity-70">{category.count}</span>
+            )}
+          </span>
         </Link>
       ))}
     </div>
