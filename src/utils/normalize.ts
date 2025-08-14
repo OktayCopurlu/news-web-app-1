@@ -68,7 +68,7 @@ export function normalizeArticle(raw: RawArticle): ArticleDetail {
     language: raw.language ?? "en",
     source: raw.source ?? raw.source_name ?? "Unknown",
     source_url: raw.source_url ?? raw.url ?? null,
-  image_url: raw.image_url ?? raw.imageUrl ?? raw.media?.url ?? null,
+    image_url: raw.image_url ?? raw.imageUrl ?? raw.media?.url ?? null,
     published_at:
       raw.published_at ?? raw.publishedAt ?? new Date().toISOString(),
     reading_time: readingTime,
@@ -82,8 +82,14 @@ export function normalizeArticle(raw: RawArticle): ArticleDetail {
     article_analytics: raw.article_analytics ?? [],
     quizzes: raw.quizzes ?? [],
     coverage_comparisons: raw.coverage_comparisons ?? [],
-    media: raw.media ?? (raw.image_url || raw.imageUrl
-      ? { id: `${raw.id}-ext`, origin: "publisher", url: (raw.image_url || raw.imageUrl) as string }
-      : null),
+    media:
+      raw.media ??
+      (raw.image_url || raw.imageUrl
+        ? {
+            id: `${raw.id}-ext`,
+            origin: "publisher",
+            url: (raw.image_url || raw.imageUrl) as string,
+          }
+        : null),
   };
 }
