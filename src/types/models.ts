@@ -18,6 +18,24 @@ export interface ArticleSummary {
   eli5_summary?: string | null;
 }
 
+// Media types (from backend BFF)
+export interface MediaVariant {
+  width: number;
+  url: string;
+  bytes?: number;
+}
+
+export interface MediaAsset {
+  id: string;
+  origin: string; // 'publisher' | 'stock' | 'ai_generated' | 'og_card' | ...
+  url: string;
+  width?: number;
+  height?: number;
+  license?: string | null;
+  attribution?: string | null;
+  variants?: MediaVariant[];
+}
+
 export interface ArticleAnalytics {
   bias_score: number;
   bias_explanation: string | null;
@@ -60,6 +78,8 @@ export interface ArticleDetail extends ArticleSummary {
   article_analytics?: ArticleAnalytics[];
   quizzes?: Quiz[];
   coverage_comparisons?: CoverageComparison[];
+  // Optional rich media payload
+  media?: MediaAsset | null;
 }
 
 export interface UserPreferences {

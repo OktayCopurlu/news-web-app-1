@@ -258,13 +258,14 @@ export const newsApi = {
     if (cache.get("articles")) return cache.get("articles");
     // Prefer BFF for article list; fallback to Edge Function if it fails
     try {
-      const data = await apiFetch<unknown[]>({ path: "/articles" });
-      const list = Array.isArray(data)
-        ? data.map((d) => {
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            return normalizeArticle(d as any);
-          })
-        : [];
+      const data = await apiFetch<unknown>({ path: "/articles?includeMedia=true" });
+      // Accept either array or envelope { success, data }
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const arr = Array.isArray(data) ? (data as any[]) : (data && (data as any).data ? ((data as any).data as any[]) : []);
+      const list = arr.map((d) => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        return normalizeArticle(d as any);
+      });
       // If we got an unexpectedly tiny list, avoid long caching so we can recover quickly after backend restarts.
       const ttl = list.length < 5 ? 5_000 : 60_000;
       cache.set("articles", list, ttl);
@@ -288,9 +289,12 @@ export const newsApi = {
     const a = cache.get(`article:${id}`);
     if (a) return a;
     try {
-      const data = await apiFetch<unknown>({ path: `/articles/${id}` });
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const art = normalizeArticle(data as any);
+  const data = await apiFetch<unknown>({ path: `/articles/${id}?includeMedia=true` });
+  // Accept either direct object or envelope { success, data }
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const raw = (data && (data as any).data) ? (data as any).data : data;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const art = normalizeArticle(raw as any);
       cache.set(`article:${id}`, art, 120_000);
       return art;
     } catch {

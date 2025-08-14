@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { Clock, Eye, TrendingUp, Volume2 } from 'lucide-react';
 import type { ArticleDetail } from '../types/models';
@@ -36,6 +36,19 @@ const NewsCard: React.FC<NewsCardProps> = ({ article, featured = false }) => {
     }
   };
 
+  // Build responsive image props if media provided
+  const media = article.media;
+  const imgProps = useMemo(() => {
+    if (!media) return { src: article.image_url || "", srcSet: undefined as string | undefined, sizes: undefined as string | undefined };
+    const variants = (media.variants || []).slice().sort((a, b) => a.width - b.width);
+    const src = media.url || article.image_url || "";
+    const srcSet = variants.length
+      ? variants.map((v) => `${v.url} ${v.width}w`).join(", ")
+      : undefined;
+    const sizes = variants.length ? "(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw" : undefined;
+    return { src, srcSet, sizes };
+  }, [article.image_url, media]);
+
   return (
     <article className={`bg-white dark:bg-gray-800 rounded-xl shadow-sm hover:shadow-md transition-all duration-200 overflow-hidden group ${
       featured ? 'md:col-span-2 lg:col-span-1' : ''
@@ -44,10 +57,18 @@ const NewsCard: React.FC<NewsCardProps> = ({ article, featured = false }) => {
         {/* Image */}
         <div className={`relative overflow-hidden ${featured ? 'h-48' : 'h-40'}`}>
           <img
-            src={article.image_url || ''}
+            src={imgProps.src}
+            srcSet={imgProps.srcSet}
+            sizes={imgProps.sizes}
             alt={article.title}
             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
+            loading="lazy"
           />
+          {media && (media.origin === 'ai_generated' || media.origin === 'og_card') && (
+            <span className="absolute bottom-3 left-3 bg-black/70 text-white px-2 py-1 rounded text-xs font-medium">
+              Illustration
+            </span>
+          )}
           <div className="absolute top-3 left-3">
             <span className="bg-blue-600 text-white px-2 py-1 rounded text-xs font-medium">
               {article.category}

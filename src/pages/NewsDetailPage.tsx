@@ -236,12 +236,37 @@ const NewsDetailPage: React.FC = () => {
         <article className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg overflow-hidden">
           {/* Hero Image */}
           <div className="relative h-64 sm:h-80">
-            <img
-              src={article.image_url || ''}
-              alt={article.title}
-              className="w-full h-full object-cover"
-            />
+            {(() => {
+              const m = article.media;
+              if (m) {
+                const variants = (m.variants || []).slice().sort((a,b)=>a.width-b.width);
+                const srcSet = variants.length ? variants.map(v=>`${v.url} ${v.width}w`).join(', ') : undefined;
+                const sizes = variants.length ? '(max-width: 768px) 100vw, 768px' : undefined;
+                return (
+                  <img
+                    src={m.url || article.image_url || ''}
+                    srcSet={srcSet}
+                    sizes={sizes}
+                    alt={article.title}
+                    className="w-full h-full object-cover"
+                    loading="eager"
+                  />
+                );
+              }
+              return (
+                <img
+                  src={article.image_url || ''}
+                  alt={article.title}
+                  className="w-full h-full object-cover"
+                />
+              );
+            })()}
             <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+            {article.media && (article.media.origin === 'ai_generated' || article.media.origin === 'og_card') && (
+              <div className="absolute top-4 left-4">
+                <span className="bg-black/70 text-white px-2 py-1 rounded text-xs font-medium">Illustration</span>
+              </div>
+            )}
             <div className="absolute bottom-4 left-4 right-4">
               <div className="flex items-center space-x-2 text-white/80 text-sm mb-2">
                 <span className="bg-blue-600 px-2 py-1 rounded text-xs font-medium">
