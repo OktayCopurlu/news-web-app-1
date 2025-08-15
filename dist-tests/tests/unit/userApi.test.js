@@ -36,14 +36,27 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
     }
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-globalThis.localStorage = { store: {}, getItem: function (k) { return this.store[k]; }, setItem: function (k, v) { this.store[k] = v; }, removeItem: function (k) { delete this.store[k]; } };
+// monkey patch apiFetch via require cache (simplistic)
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+globalThis.localStorage = {
+    store: {},
+    getItem: function (k) {
+        return this.store[k];
+    },
+    setItem: function (k, v) {
+        this.store[k] = v;
+    },
+    removeItem: function (k) {
+        delete this.store[k];
+    },
+};
 function run() {
     return __awaiter(this, void 0, void 0, function () {
         return __generator(this, function (_a) {
             // mock apiFetch by reassigning (since api.ts imported it earlier we can't override inside closure easily here)
             // Instead, call userApi.login after temporarily replacing global fetcher behavior via fetch mocking in fetcher itself not trivial; fallback: simulate by directly setting token side effect not covered.
             // Minimal smoke: ensure register/login return shaped object with user + token keys when underlying apiFetch returns those keys
-            console.log('userApi test placeholder (extend with proper mocking framework later)');
+            console.log("userApi test placeholder (extend with proper mocking framework later)");
             return [2 /*return*/];
         });
     });

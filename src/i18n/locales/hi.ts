@@ -9,6 +9,7 @@ export const hi = {
   compareCoverage: "कवरेज तुलना",
   minutesRead: "{minutes} मिनट पढ़ने का समय",
   generating: "बना रहे हैं...",
+  translatingLabel: "अनुवाद हो रहा है…",
   illustrationLabel: "चित्रण",
   failedToLoadNews: "समाचार लोड करने में विफल",
   retry: "पुनः प्रयास करें",

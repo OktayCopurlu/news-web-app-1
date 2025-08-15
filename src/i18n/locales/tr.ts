@@ -9,6 +9,7 @@ export const tr = {
   compareCoverage: "Kapsamı Karşılaştır",
   minutesRead: "{minutes} dk okuma",
   generating: "Oluşturuluyor...",
+  translatingLabel: "Çevriliyor…",
   illustrationLabel: "Görsel",
   failedToLoadNews: "Haberler Yüklenemedi",
   retry: "Yeniden dene",

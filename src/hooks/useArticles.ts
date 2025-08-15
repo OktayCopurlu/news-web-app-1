@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { newsApi, userApi } from "../services/api";
+import { newsApi, userApi, type GetArticlesOptions } from "../services/api";
 import type { ArticleDetail } from "../types/models";
 
 // Backward compatibility: export Article alias (previous local interface)
@@ -10,11 +10,40 @@ export const useArticles = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchArticles = async () => {
+  const fetchArticles = async (options: GetArticlesOptions = {}) => {
     try {
       setLoading(true);
-      const data = await newsApi.getArticles();
+      const data = await newsApi.getArticles(options);
       setArticles(data);
+      // Progressive fill: if any are pending, request batch translation for visible items
+      const pending = data
+        .filter(
+          (a: ArticleDetail & { translation_status?: "ready" | "pending" }) =>
+            a.translation_status === "pending"
+        )
+        .map((a) => a.id);
+      if (pending.length > 0) {
+        // Fire and forget; when back, refetch quickly to refresh cards
+        try {
+          await newsApi.translateBatch(pending.slice(0, 12));
+          // Small debounce to let BFF persist
+          setTimeout(async () => {
+            try {
+              const refreshed = await newsApi.getArticles({
+                ...options,
+                strict: false,
+                noFallback: true,
+                forceRefresh: true,
+              });
+              setArticles(refreshed);
+            } catch {
+              /* ignore */
+            }
+          }, 500);
+        } catch {
+          // ignore batch errors; items will be filled by background pretranslation eventually
+        }
+      }
       setError(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to fetch articles");

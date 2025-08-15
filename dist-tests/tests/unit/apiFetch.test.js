@@ -48,9 +48,15 @@ function run() {
                     // eslint-disable-next-line @typescript-eslint/no-explicit-any
                     globalThis.localStorage = {
                         store: {},
-                        getItem: function (key) { return this.store[key]; },
-                        setItem: function (key, val) { this.store[key] = val; },
-                        removeItem: function (key) { delete this.store[key]; }
+                        getItem: function (key) {
+                            return this.store[key];
+                        },
+                        setItem: function (key, val) {
+                            this.store[key] = val;
+                        },
+                        removeItem: function (key) {
+                            delete this.store[key];
+                        },
                     };
                     originalFetch = globalThis.fetch;
                     callCount = 0;
@@ -58,40 +64,44 @@ function run() {
                         return __generator(this, function (_a) {
                             callCount++;
                             if (callCount < 2)
-                                throw new TypeError('Simulated network failure');
-                            return [2 /*return*/, new Response(JSON.stringify({ ok: true }), { status: 200, headers: { 'Content-Type': 'application/json' } })];
+                                throw new TypeError("Simulated network failure");
+                            return [2 /*return*/, new Response(JSON.stringify({ ok: true }), {
+                                    status: 200,
+                                    headers: { "Content-Type": "application/json" },
+                                })];
                         });
                     }); });
-                    return [4 /*yield*/, (0, fetcher_1.apiFetch)({ path: '/test', retries: 2 })];
+                    return [4 /*yield*/, (0, fetcher_1.apiFetch)({ path: "/test", retries: 2 })];
                 case 1:
                     res = _a.sent();
-                    if (!res.ok)
-                        throw new Error('Retry logic failed');
+                    if (!res || typeof res !== "object")
+                        throw new Error("Retry logic failed");
                     globalThis.fetch = (function () { return __awaiter(_this, void 0, void 0, function () { return __generator(this, function (_a) {
-                        return [2 /*return*/, new Response('boom', { status: 500 })];
+                        return [2 /*return*/, new Response("boom", { status: 500 })];
                     }); }); });
                     caught = false;
                     _a.label = 2;
                 case 2:
                     _a.trys.push([2, 4, , 5]);
-                    return [4 /*yield*/, (0, fetcher_1.apiFetch)({ path: '/err' })];
+                    return [4 /*yield*/, (0, fetcher_1.apiFetch)({ path: "/err" })];
                 case 3:
                     _a.sent();
                     return [3 /*break*/, 5];
                 case 4:
                     e_1 = _a.sent();
                     err = e_1;
-                    if (e_1 instanceof fetcher_1.HttpError || (err && typeof err.status === 'number' && err.status === 500))
+                    if (e_1 instanceof fetcher_1.HttpError ||
+                        (err && typeof err.status === "number" && err.status === 500))
                         caught = true;
                     if (!caught)
-                        console.error('Unexpected error object', e_1);
+                        console.error("Unexpected error object", e_1);
                     return [3 /*break*/, 5];
                 case 5:
                     if (!caught)
-                        throw new Error('Expected HttpError or network error fallback on failure');
+                        throw new Error("Expected HttpError or network error fallback on failure");
                     if (originalFetch)
                         globalThis.fetch = originalFetch;
-                    console.log('apiFetch retry + HTTP error test passed');
+                    console.log("apiFetch retry + HTTP error test passed");
                     return [2 /*return*/];
             }
         });

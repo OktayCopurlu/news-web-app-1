@@ -9,6 +9,7 @@ export const ja = {
   compareCoverage: "報道比較",
   minutesRead: "読了目安 {minutes} 分",
   generating: "生成中...",
+  translatingLabel: "翻訳中…",
   illustrationLabel: "イラスト",
   failedToLoadNews: "ニュースの読み込みに失敗しました",
   retry: "再試行",

@@ -13,6 +13,7 @@ interface RawArticle {
   explanation_generated?: boolean;
   category?: string;
   language?: string;
+  translation_status?: "ready" | "pending";
   source?: string;
   source_name?: string;
   source_url?: string;
@@ -66,6 +67,7 @@ export function normalizeArticle(raw: RawArticle): ArticleDetail {
     explanation_generated: !!(raw.ai_explanation || raw.explanation_generated),
     category: raw.category ?? "general",
     language: raw.language ?? "en",
+    translation_status: raw.translation_status,
     source: raw.source ?? raw.source_name ?? "Unknown",
     source_url: raw.source_url ?? raw.url ?? null,
     image_url: raw.image_url ?? raw.imageUrl ?? raw.media?.url ?? null,

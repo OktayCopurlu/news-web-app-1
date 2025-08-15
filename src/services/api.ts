@@ -8,6 +8,7 @@ import type {
   CoverageComparison,
   UserProfileModel,
 } from "../types/models";
+import type { ArticleDetail } from "../types/models";
 
 // Local fallback sample data (dev/demo only)
 // Simple in-memory TTL cache (reset on reload)
@@ -252,18 +253,65 @@ function notifyFallback(reason: string) {
   }
 }
 
+export type GetArticlesOptions = {
+  strict?: boolean; // add strict=1 to block until translations are ready
+  noFallback?: boolean; // do not return local mock data on failure
+  timeoutMs?: number; // per-attempt timeout
+  waitMs?: number; // overall wait budget with retries while keeping loading state
+  forceRefresh?: boolean; // ignore cache for this call
+};
+
 export const newsApi = {
+  // Fetch app markets config
+  getConfig: async (): Promise<{
+    markets?: Array<{
+      market_code: string;
+      enabled?: boolean;
+      pivot_lang?: string;
+      pretranslate_langs?: string[] | string | null;
+    }>;
+    market?: {
+      market_code: string;
+      pivot_lang?: string;
+      pretranslate_langs?: string[] | string | null;
+    };
+  }> => {
+    return apiFetch({ path: `/config`, headers: {} });
+  },
   // Fetch all articles
-  getArticles: async () => {
+  getArticles: async (
+    options: GetArticlesOptions = {}
+  ): Promise<ArticleDetail[]> => {
+    const {
+      strict = false,
+      noFallback = false,
+      timeoutMs,
+      waitMs = 0,
+      forceRefresh = false,
+    } = options;
     const langKey = getPreferredLang();
-    if (cache.get(`articles:${langKey}`))
-      return cache.get(`articles:${langKey}`);
-    // Prefer BFF for article list; fallback to local sample if it fails
-    try {
+    if (!forceRefresh) {
+      const cached = cache.get<ArticleDetail[]>(`articles:${langKey}`);
+      if (cached) return cached as ArticleDetail[];
+    }
+    // Prefer BFF for article list; fallback to local sample if it fails (unless noFallback)
+    const deadline = waitMs > 0 ? Date.now() + waitMs : 0;
+    const baseAttemptTimeout = timeoutMs || (strict ? 20_000 : undefined);
+    // Inner fetch function
+    const fetchOnce = async () => {
       const lang = getPreferredLang();
+      const path = `/feed?lang=${encodeURIComponent(lang)}${
+        strict ? "&strict=1" : ""
+      }`;
+      const remaining = deadline ? Math.max(0, deadline - Date.now()) : 0;
+      const effectiveTimeout = remaining
+        ? Math.max(1_000, Math.min(baseAttemptTimeout ?? remaining, remaining))
+        : baseAttemptTimeout;
       const data = await apiFetch<unknown>({
-        path: `/feed?lang=${encodeURIComponent(lang)}`,
+        path,
         headers: { "Accept-Language": lang },
+        timeoutMs: effectiveTimeout,
+        retries: 0,
       });
       // BFF returns an envelope { data: ClusterSummary[] }
       // Map to Article cards using ai_title/ai_summary as title/summary
@@ -288,8 +336,12 @@ export const newsApi = {
         reading_time?: number;
         tags?: string[];
         media?: { url?: string } | null;
+        // BFF non-strict can return a readiness hint
+        translation_status?: "ready" | "pending";
       };
-      type RawInput = Parameters<typeof normalizeArticle>[0];
+      type RawInput = Parameters<typeof normalizeArticle>[0] & {
+        translation_status?: "ready" | "pending";
+      };
       const payload: unknown = data;
       let arr: ClusterCard[] = [];
       if (Array.isArray(payload)) {
@@ -341,6 +393,8 @@ export const newsApi = {
               : undefined,
           tags: c.tags || [],
         };
+        // Preserve translation readiness if provided
+        base.translation_status = c.translation_status;
         if (c.source_url || typeof c.source_url === "string")
           base.source_url = c.source_url || undefined;
         if (c.image_url || typeof c.image_url === "string")
@@ -357,27 +411,60 @@ export const newsApi = {
       });
       // If we got an unexpectedly tiny list, avoid long caching so we can recover quickly after backend restarts.
       const ttl = list.length < 5 ? 5_000 : 60_000;
-      cache.set(`articles:${langKey}`, list, ttl);
-      return list;
-    } catch {
-      notifyFallback("articles fetch failed");
-      const list = FALLBACK_ARTICLES.map(
-        (a) =>
-          ({
-            ...normalizeArticle(a),
-            __origin: "fallback",
-          } as unknown as ReturnType<typeof normalizeArticle>)
-      );
-      cache.set(`articles:${langKey}`, list, 30_000);
-      return list;
+      cache.set(`articles:${langKey}`, list as ArticleDetail[], ttl);
+      return list as ArticleDetail[];
+    };
+    while (true) {
+      try {
+        return await fetchOnce();
+      } catch (err) {
+        if (deadline && Date.now() < deadline) {
+          // brief backoff before retrying
+          await new Promise((r) => setTimeout(r, 600));
+          continue;
+        }
+        if (noFallback) throw err;
+        // Fall back to local sample data
+        notifyFallback("articles fetch failed");
+        const list = FALLBACK_ARTICLES.map(
+          (a) =>
+            ({
+              ...normalizeArticle(a),
+              __origin: "fallback",
+            } as unknown as ReturnType<typeof normalizeArticle>)
+        );
+        cache.set(`articles:${langKey}`, list as ArticleDetail[], 30_000);
+        return list as ArticleDetail[];
+      }
     }
   },
 
+  // Request batch translation for a set of cluster IDs (progressive fill)
+  translateBatch: async (
+    clusterIds: string[]
+  ): Promise<{
+    results: Array<{
+      id: string;
+      status: "ready" | "failed";
+      ai_title?: string;
+      ai_summary?: string;
+    }>;
+    failed?: string[];
+  }> => {
+    const lang = getPreferredLang();
+    return apiFetch({
+      path: `/translate/batch?lang=${encodeURIComponent(lang)}`,
+      method: "POST",
+      body: { ids: clusterIds, clusterIds },
+      headers: { "Accept-Language": lang },
+    });
+  },
+
   // Get specific article
-  getArticle: async (id: string) => {
+  getArticle: async (id: string): Promise<ArticleDetail> => {
     const langKey = getPreferredLang();
-    const a = cache.get(`article:${id}:${langKey}`);
-    if (a) return a;
+    const a = cache.get<ArticleDetail>(`article:${id}:${langKey}`);
+    if (a) return a as ArticleDetail;
     try {
       const lang = getPreferredLang();
       const data = await apiFetch<unknown>({
@@ -495,8 +582,8 @@ export const newsApi = {
           url: mediaUrl2,
         } as RawInput2["media"];
       const art = normalizeArticle(base as RawInput2);
-      cache.set(`article:${id}:${langKey}`, art, 120_000);
-      return art;
+      cache.set(`article:${id}:${langKey}`, art as ArticleDetail, 120_000);
+      return art as ArticleDetail;
     } catch {
       const fallback = FALLBACK_ARTICLES.find((a) => a.id === id);
       if (!fallback) throw new Error("Article not found");
@@ -505,8 +592,8 @@ export const newsApi = {
         ...normalizeArticle(fallback),
         __origin: "fallback",
       } as unknown as ReturnType<typeof normalizeArticle>;
-      cache.set(`article:${id}:${langKey}`, art, 60_000);
-      return art;
+      cache.set(`article:${id}:${langKey}`, art as ArticleDetail, 60_000);
+      return art as ArticleDetail;
     }
   },
 

@@ -80,6 +80,8 @@ export interface ArticleDetail extends ArticleSummary {
   coverage_comparisons?: CoverageComparison[];
   // Optional rich media payload
   media?: MediaAsset | null;
+  // Translation readiness hint from BFF (/feed non-strict)
+  translation_status?: "ready" | "pending";
 }
 
 export interface UserPreferences {

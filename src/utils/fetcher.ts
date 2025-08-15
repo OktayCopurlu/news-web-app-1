@@ -106,15 +106,16 @@ export async function apiFetch<T = unknown>(options: FetchOptions): Promise<T> {
     for (const base of baseToTry) {
       const fullUrl = `${base}${path}`;
       tried.push(fullUrl);
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      if (
-        import.meta &&
-        (import.meta as any).env &&
-        (import.meta as any).env.DEV &&
-        attempt === 0 &&
-        tried.length === 1
-      ) {
-        console.debug("[apiFetch] attempt 0 ->", fullUrl);
+      try {
+        // Avoid TS 'import.meta' restriction in CommonJS tests
+        const im = eval("import.meta") as unknown as
+          | { env?: { DEV?: boolean } }
+          | undefined;
+        if (im?.env?.DEV && attempt === 0 && tried.length === 1) {
+          console.debug("[apiFetch] attempt 0 ->", fullUrl);
+        }
+      } catch {
+        // ignore when not available
       }
       try {
         const result = await tryFetch<T>(fullUrl, fetchInit, expectJson);
@@ -123,12 +124,11 @@ export async function apiFetch<T = unknown>(options: FetchOptions): Promise<T> {
         return result;
       } catch (err) {
         // Duck-type detection of HttpError (status number) to avoid cross-realm instanceof issues in tests
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         if (
           err &&
           typeof err === "object" &&
           "status" in err &&
-          typeof (err as any).status === "number"
+          typeof (err as { status?: number }).status === "number"
         ) {
           clearTimeout(timeout);
           throw err; // HTTP status -> no retries beyond base switching
@@ -154,17 +154,29 @@ export async function apiFetch<T = unknown>(options: FetchOptions): Promise<T> {
   const networkMsg = `Network fetch failed for ${path}. Tried: ${tried.join(
     ", "
   )}. Attempts=${attempt}. Last error: ${lastMsg}`;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  if (import.meta && (import.meta as any).env && (import.meta as any).env.DEV) {
-    console.warn("[apiFetch] network failure", {
-      path,
-      tried,
-      attempts: attempt,
-      lastErr,
-    });
-    // expose for quick manual inspection
-    // @ts-expect-error debug export
-    window.__lastApiFetchDebug = { path, tried, attempts: attempt, lastErr };
+  try {
+    const im = eval("import.meta") as unknown as
+      | { env?: { DEV?: boolean } }
+      | undefined;
+    if (im?.env?.DEV) {
+      console.warn("[apiFetch] network failure", {
+        path,
+        tried,
+        attempts: attempt,
+        lastErr,
+      });
+      if (typeof globalThis !== "undefined") {
+        (globalThis as unknown as Record<string, unknown>).__lastApiFetchDebug =
+          {
+            path,
+            tried,
+            attempts: attempt,
+            lastErr,
+          };
+      }
+    }
+  } catch {
+    // ignore
   }
   if (throwOnNetworkError) throw new TypeError(networkMsg);
   return { networkError: true, message: networkMsg } as unknown as T;

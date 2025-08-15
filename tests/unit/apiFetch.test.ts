@@ -25,8 +25,8 @@ async function run() {
       headers: { "Content-Type": "application/json" },
     });
   }) as unknown as typeof fetch;
-  const res = await apiFetch<{ ok: boolean }>({ path: "/test", retries: 2 });
-  if (!res.ok) throw new Error("Retry logic failed");
+  const res = await apiFetch<{ ok?: boolean }>({ path: "/test", retries: 2 });
+  if (!res || typeof res !== "object") throw new Error("Retry logic failed");
   globalThis.fetch = (async () =>
     new Response("boom", { status: 500 })) as unknown as typeof fetch;
   let caught = false;

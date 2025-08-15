@@ -4,4 +4,5 @@ Object.defineProperty(exports, "__esModule", { value: true });
 require("./normalizeArticle.test");
 require("./apiFetch.test");
 require("./userApi.test");
-console.log('All unit tests executed');
+require("./translateBatch.test");
+console.log("All unit tests executed");

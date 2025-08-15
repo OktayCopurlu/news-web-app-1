@@ -28,6 +28,7 @@ interface NewsContextType {
   setSelectedArticle: (article: Article | null) => void
   getArticleById: (id: string) => Promise<Article | null>
   searchArticles: (query: string, filters?: ArticleFilters) => Promise<void>
+  reloadArticles: () => Promise<void>
   sendChatMessage: (articleId: string, message: string, history: ChatMessage[]) => Promise<string>
   generateQuiz: (articleId: string) => Promise<NewsQuiz>
   getCoverageComparison: (articleId: string) => Promise<CoverageComparison[]>
@@ -42,7 +43,7 @@ interface NewsProviderProps {
 }
 
 export const NewsProvider: React.FC<NewsProviderProps> = ({ children }) => {
-  const { articles, loading, error, getArticle, searchArticles: searchArticlesApi, initializeWithSampleData } = useArticles()
+  const { articles, loading, error, getArticle, searchArticles: searchArticlesApi, initializeWithSampleData, fetchArticles } = useArticles()
   const [selectedArticle, setSelectedArticle] = useState<Article | null>(null)
 
   const getArticleById = async (id: string): Promise<Article | null> => {
@@ -60,6 +61,11 @@ export const NewsProvider: React.FC<NewsProviderProps> = ({ children }) => {
 
   const searchArticles = async (query: string, filters: ArticleFilters = {}) => {
     await searchArticlesApi(query, filters)
+  }
+
+  const reloadArticles = async () => {
+    // Progressive reload on language switch: non-strict + batch fill will update items shortly
+    await fetchArticles({ strict: false, noFallback: true, forceRefresh: true })
   }
 
   const sendChatMessage = async (articleId: string, message: string, history: ChatMessage[] = []): Promise<string> => {
@@ -119,6 +125,7 @@ export const NewsProvider: React.FC<NewsProviderProps> = ({ children }) => {
       setSelectedArticle,
       getArticleById,
       searchArticles,
+  reloadArticles,
       sendChatMessage,
       generateQuiz,
       getCoverageComparison,

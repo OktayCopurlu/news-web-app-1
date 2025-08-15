@@ -79,6 +79,7 @@ var HttpError = /** @class */ (function (_super) {
 exports.HttpError = HttpError;
 // Allow dynamic override of base URL (e.g. if dev server auto-shifted port)
 var dynamicBaseUrl = null;
+var configuredBase = config_1.CONFIG.BFF_URL; // track env changes during HMR
 function tryFetch(fullUrl, fetchInit, expectJson) {
     return __awaiter(this, void 0, void 0, function () {
         var res, msg, _a, _b;
@@ -118,11 +119,17 @@ function tryFetch(fullUrl, fetchInit, expectJson) {
 }
 function apiFetch(options) {
     return __awaiter(this, void 0, void 0, function () {
-        var path, _a, method, body, _b, headers, _c, timeoutMs, _d, retries, _e, retryDelayMs, _f, throwOnNetworkError, controller, timeout, token, finalHeaders, fetchInit, expectJson, lastErr, tried, baseToTry, initialBase, urlObj, port, p, attempt, networkFailed, _loop_1, state_1, lastMsg, networkMsg;
-        return __generator(this, function (_g) {
-            switch (_g.label) {
+        var path, _a, method, body, _b, headers, _c, timeoutMs, _d, retries, _e, retryDelayMs, _f, throwOnNetworkError, controller, timeout, token, finalHeaders, fetchInit, expectJson, lastErr, tried, baseToTry, initialBase, urlObj, port, p, attempt, networkFailed, _loop_1, state_1, lastMsg, networkMsg, im;
+        var _g, _h;
+        return __generator(this, function (_j) {
+            switch (_j.label) {
                 case 0:
                     path = options.path, _a = options.method, method = _a === void 0 ? "GET" : _a, body = options.body, _b = options.headers, headers = _b === void 0 ? {} : _b, _c = options.timeoutMs, timeoutMs = _c === void 0 ? config_1.CONFIG.FETCH_TIMEOUT_MS : _c, _d = options.retries, retries = _d === void 0 ? 0 : _d, _e = options.retryDelayMs, retryDelayMs = _e === void 0 ? 300 : _e, _f = options.throwOnNetworkError, throwOnNetworkError = _f === void 0 ? true : _f;
+                    // Reset dynamic base if env changed (HMR / .env.local update)
+                    if (config_1.CONFIG.BFF_URL !== configuredBase) {
+                        dynamicBaseUrl = null;
+                        configuredBase = config_1.CONFIG.BFF_URL;
+                    }
                     controller = new AbortController();
                     timeout = setTimeout(function () { return controller.abort(); }, timeoutMs);
                     token = localStorage.getItem("auth_token");
@@ -151,38 +158,49 @@ function apiFetch(options) {
                             }
                         }
                     }
-                    catch (_h) {
+                    catch (_k) {
                         // ignore URL parse issues
                     }
                     attempt = 0;
                     networkFailed = false;
                     _loop_1 = function () {
-                        var _i, baseToTry_1, base, fullUrl, result, err_1, delay_1;
-                        return __generator(this, function (_j) {
-                            switch (_j.label) {
+                        var _i, baseToTry_1, base, fullUrl, im, result, err_1, delay_1;
+                        return __generator(this, function (_m) {
+                            switch (_m.label) {
                                 case 0:
                                     _i = 0, baseToTry_1 = baseToTry;
-                                    _j.label = 1;
+                                    _m.label = 1;
                                 case 1:
                                     if (!(_i < baseToTry_1.length)) return [3 /*break*/, 6];
                                     base = baseToTry_1[_i];
                                     fullUrl = "".concat(base).concat(path);
                                     tried.push(fullUrl);
-                                    _j.label = 2;
+                                    try {
+                                        im = eval("import.meta");
+                                        if (((_g = im === null || im === void 0 ? void 0 : im.env) === null || _g === void 0 ? void 0 : _g.DEV) && attempt === 0 && tried.length === 1) {
+                                            console.debug("[apiFetch] attempt 0 ->", fullUrl);
+                                        }
+                                    }
+                                    catch (_o) {
+                                        // ignore when not available
+                                    }
+                                    _m.label = 2;
                                 case 2:
-                                    _j.trys.push([2, 4, , 5]);
+                                    _m.trys.push([2, 4, , 5]);
                                     return [4 /*yield*/, tryFetch(fullUrl, fetchInit, expectJson)];
                                 case 3:
-                                    result = _j.sent();
+                                    result = _m.sent();
                                     if (!dynamicBaseUrl && base !== initialBase)
                                         dynamicBaseUrl = base;
                                     clearTimeout(timeout);
                                     return [2 /*return*/, { value: result }];
                                 case 4:
-                                    err_1 = _j.sent();
+                                    err_1 = _m.sent();
                                     // Duck-type detection of HttpError (status number) to avoid cross-realm instanceof issues in tests
-                                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                                    if (err_1 && typeof err_1 === 'object' && 'status' in err_1 && typeof err_1.status === 'number') {
+                                    if (err_1 &&
+                                        typeof err_1 === "object" &&
+                                        "status" in err_1 &&
+                                        typeof err_1.status === "number") {
                                         clearTimeout(timeout);
                                         throw err_1; // HTTP status -> no retries beyond base switching
                                     }
@@ -197,20 +215,20 @@ function apiFetch(options) {
                                     delay_1 = retryDelayMs * Math.pow(2, attempt);
                                     return [4 /*yield*/, new Promise(function (r) { return setTimeout(r, delay_1); })];
                                 case 7:
-                                    _j.sent();
-                                    _j.label = 8;
+                                    _m.sent();
+                                    _m.label = 8;
                                 case 8:
                                     attempt++;
                                     return [2 /*return*/];
                             }
                         });
                     };
-                    _g.label = 1;
+                    _j.label = 1;
                 case 1:
                     if (!(attempt <= retries)) return [3 /*break*/, 3];
                     return [5 /*yield**/, _loop_1()];
                 case 2:
-                    state_1 = _g.sent();
+                    state_1 = _j.sent();
                     if (typeof state_1 === "object")
                         return [2 /*return*/, state_1.value];
                     return [3 /*break*/, 1];
@@ -218,8 +236,32 @@ function apiFetch(options) {
                     clearTimeout(timeout);
                     if (lastErr instanceof HttpError)
                         throw lastErr;
-                    lastMsg = lastErr && typeof lastErr === "object" && "message" in lastErr ? lastErr.message : String(lastErr);
+                    lastMsg = lastErr && typeof lastErr === "object" && "message" in lastErr
+                        ? lastErr.message
+                        : String(lastErr);
                     networkMsg = "Network fetch failed for ".concat(path, ". Tried: ").concat(tried.join(", "), ". Attempts=").concat(attempt, ". Last error: ").concat(lastMsg);
+                    try {
+                        im = eval("import.meta");
+                        if ((_h = im === null || im === void 0 ? void 0 : im.env) === null || _h === void 0 ? void 0 : _h.DEV) {
+                            console.warn("[apiFetch] network failure", {
+                                path: path,
+                                tried: tried,
+                                attempts: attempt,
+                                lastErr: lastErr,
+                            });
+                            if (typeof globalThis !== "undefined") {
+                                globalThis.__lastApiFetchDebug = {
+                                    path: path,
+                                    tried: tried,
+                                    attempts: attempt,
+                                    lastErr: lastErr,
+                                };
+                            }
+                        }
+                    }
+                    catch (_l) {
+                        // ignore
+                    }
                     if (throwOnNetworkError)
                         throw new TypeError(networkMsg);
                     return [2 /*return*/, { networkError: true, message: networkMsg }];

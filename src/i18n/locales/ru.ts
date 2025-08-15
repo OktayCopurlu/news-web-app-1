@@ -9,6 +9,7 @@ export const ru = {
   compareCoverage: "Сравнить освещение",
   minutesRead: "{minutes} мин чтения",
   generating: "Генерация...",
+  translatingLabel: "Переводим…",
   illustrationLabel: "Иллюстрация",
   failedToLoadNews: "Не удалось загрузить новости",
   retry: "Повторить",

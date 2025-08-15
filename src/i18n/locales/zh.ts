@@ -9,6 +9,7 @@ export const zh = {
   compareCoverage: "对比报道",
   minutesRead: "阅读需 {minutes} 分钟",
   generating: "生成中...",
+  translatingLabel: "正在翻译…",
   illustrationLabel: "插图",
   failedToLoadNews: "新闻加载失败",
   retry: "重试",

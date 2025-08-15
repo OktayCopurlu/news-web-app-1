@@ -9,6 +9,7 @@ export const ar = {
   compareCoverage: "مقارنة التغطية",
   minutesRead: "{minutes} دقيقة قراءة",
   generating: "جاري الإنشاء...",
+  translatingLabel: "جارٍ الترجمة…",
   illustrationLabel: "صورة توضيحية",
   failedToLoadNews: "فشل تحميل الأخبار",
   retry: "إعادة المحاولة",

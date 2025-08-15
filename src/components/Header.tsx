@@ -1,10 +1,12 @@
-import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import React, { useEffect, useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { Search, Menu, X, Sun, Moon, Globe, User, Bell } from 'lucide-react';
 import { useTheme } from '../contexts/useTheme';
 import { useUser } from '../contexts/useUser';
 import { useNews } from '../contexts/useNews';
 import { t } from '../i18n';
+import { getPreferredLang, normalizeLang, setPreferredLang, setDocumentLangDir } from '../utils/lang';
+import { newsApi } from '../services/api';
 
 const Header: React.FC = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -12,7 +14,47 @@ const Header: React.FC = () => {
   const [showSearch, setShowSearch] = useState(false);
   const { isDark, toggleTheme } = useTheme();
   const { user } = useUser();
-  const { searchArticles } = useNews();
+  const { searchArticles, reloadArticles } = useNews();
+  const navigate = useNavigate();
+  const [lang, setLang] = useState<string>(getPreferredLang());
+  const DEFAULT_LANG_OPTIONS = ["en","tr","de","fr","es","ar"] as const;
+  const [langOptions, setLangOptions] = useState<string[]>([...DEFAULT_LANG_OPTIONS]);
+
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      try {
+        const cfg = await newsApi.getConfig();
+        type MarketCfg = { market_code: string; pivot_lang?: string; pretranslate_langs?: string[] | string | null };
+        const markets: MarketCfg[] = (cfg as { market?: MarketCfg; markets?: MarketCfg[] }).market
+          ? [ (cfg as { market?: MarketCfg }).market as MarketCfg ]
+          : (cfg as { market?: MarketCfg; markets?: MarketCfg[] }).markets || [];
+        const set = new Set<string>();
+        for (const m of markets) {
+          if (m?.pivot_lang) set.add(normalizeLang(m.pivot_lang));
+          const pls = Array.isArray(m?.pretranslate_langs)
+            ? m.pretranslate_langs
+            : typeof m?.pretranslate_langs === 'string'
+              ? m.pretranslate_langs.split(',')
+              : [];
+          pls.forEach((l: string) => set.add(normalizeLang(l)));
+        }
+        if (mounted) {
+          const fromConfig = Array.from(set.values());
+          // Union with defaults so fallback /config can't collapse options to only 'en'
+          const union = Array.from(new Set([...
+            DEFAULT_LANG_OPTIONS,
+            ...fromConfig,
+          ]));
+          setLangOptions(union);
+        }
+      } catch {
+        // ignore; keep defaults
+      }
+    })();
+    return () => { mounted = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -38,6 +80,19 @@ const Header: React.FC = () => {
       case 'politics': return t('catPolitics');
       default: return id.charAt(0).toUpperCase() + id.slice(1);
     }
+  };
+
+  const handleLangChange = async (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const newLang = normalizeLang(e.target.value);
+    setLang(newLang);
+    setPreferredLang(newLang);
+    setDocumentLangDir(newLang);
+    // update URL ?lang= to keep state shareable
+    const url = new URL(window.location.href);
+    url.searchParams.set('lang', newLang);
+    navigate(url.pathname + url.search + url.hash, { replace: true });
+    // soft reload data in new language
+  await reloadArticles();
   };
 
   return (
@@ -71,6 +126,23 @@ const Header: React.FC = () => {
 
           {/* Search and Actions */}
           <div className="flex items-center space-x-4">
+            {/* Language Selector (minimal) */}
+            <div className="hidden md:block">
+              <label className="sr-only" htmlFor="lang-select">Language</label>
+              <div className="flex items-center gap-2">
+                <Globe className="w-4 h-4 text-gray-500 dark:text-gray-400" />
+                <select
+                  id="lang-select"
+                  value={lang}
+                  onChange={handleLangChange}
+                  className="text-sm bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md px-2 py-1 text-gray-700 dark:text-gray-200"
+                >
+                  {langOptions.map((opt) => (
+                    <option key={opt} value={opt}>{opt}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
             {/* Search Toggle */}
             <button
               onClick={() => setShowSearch(!showSearch)}
@@ -161,6 +233,23 @@ const Header: React.FC = () => {
               >
                 {t('browseArchive')}
               </Link>
+              {/* Mobile language selector */}
+              <div className="pt-3">
+                <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1" htmlFor="lang-select-mobile">Language</label>
+                <div className="flex items-center gap-2">
+                  <Globe className="w-4 h-4 text-gray-500 dark:text-gray-400" />
+                  <select
+                    id="lang-select-mobile"
+                    value={lang}
+                    onChange={async (e) => { await handleLangChange(e); setIsMenuOpen(false); }}
+                    className="w-full text-sm bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md px-2 py-1 text-gray-700 dark:text-gray-200"
+                  >
+                    {langOptions.map((opt) => (
+                      <option key={opt} value={opt}>{opt}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
             </nav>
           </div>
         )}

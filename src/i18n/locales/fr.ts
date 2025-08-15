@@ -9,6 +9,7 @@ export const fr = {
   compareCoverage: "Comparer la couverture",
   minutesRead: "{minutes} min de lecture",
   generating: "Génération...",
+  translatingLabel: "Traduction…",
   illustrationLabel: "Illustration",
   failedToLoadNews: "Échec du chargement des actualités",
   retry: "Réessayer",

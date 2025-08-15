@@ -1,4 +1,15 @@
 "use strict";
+var __assign = (this && this.__assign) || function () {
+    __assign = Object.assign || function(t) {
+        for (var s, i = 1, n = arguments.length; i < n; i++) {
+            s = arguments[i];
+            for (var p in s) if (Object.prototype.hasOwnProperty.call(s, p))
+                t[p] = s[p];
+        }
+        return t;
+    };
+    return __assign.apply(this, arguments);
+};
 var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
     function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
     return new (P || (P = Promise))(function (resolve, reject) {
@@ -60,6 +71,7 @@ exports.userApi = exports.coverageApi = exports.quizApi = exports.aiApi = export
 // Frontend requests go through the BFF only (no direct Supabase client).
 // Transitional monolith API facade – can be split into domain-specific modules later.
 var fetcher_1 = require("../utils/fetcher");
+var lang_1 = require("../utils/lang");
 var normalize_1 = require("../utils/normalize");
 var _cache = new Map();
 var now = function () { return Date.now(); };
@@ -74,16 +86,17 @@ var cache = {
         }
         return e.value;
     },
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     set: function (key, value, ttlMs) {
         _cache.set(key, { value: value, expires: now() + ttlMs });
     },
     clear: function (prefix) {
         if (!prefix)
             return _cache.clear();
-        _cache.forEach(function (_, k) { if (k.startsWith(prefix))
-            _cache.delete(k); });
-    }
+        _cache.forEach(function (_, k) {
+            if (k.startsWith(prefix))
+                _cache.delete(k);
+        });
+    },
 };
 var FALLBACK_ARTICLES = [
     {
@@ -265,63 +278,267 @@ var FALLBACK_ARTICLES = [
 ];
 // BFF base resolved centrally (CONFIG in fetcher); inline constant removed.
 // Inline normalizer & header helper removed (shared utilities now used).
+var fallbackNotified = false;
+function notifyFallback(reason) {
+    if (!fallbackNotified && typeof window !== "undefined") {
+        // Dispatch custom event for toast layer
+        window.dispatchEvent(new CustomEvent("bff-fallback", { detail: { reason: reason } }));
+        console.warn("[BFF Fallback] Using local sample data:", reason);
+        fallbackNotified = true;
+    }
+}
 exports.newsApi = {
+    // Fetch app markets config
+    getConfig: function () { return __awaiter(void 0, void 0, void 0, function () {
+        return __generator(this, function (_a) {
+            return [2 /*return*/, (0, fetcher_1.apiFetch)({ path: "/config", headers: {} })];
+        });
+    }); },
     // Fetch all articles
-    getArticles: function () { return __awaiter(void 0, void 0, void 0, function () {
-        var data, list, _a, list;
-        return __generator(this, function (_b) {
-            switch (_b.label) {
-                case 0:
-                    if (cache.get('articles'))
-                        return [2 /*return*/, cache.get('articles')];
-                    _b.label = 1;
-                case 1:
-                    _b.trys.push([1, 3, , 4]);
-                    return [4 /*yield*/, (0, fetcher_1.apiFetch)({ path: "/articles" })];
-                case 2:
-                    data = _b.sent();
-                    list = Array.isArray(data)
-                        ? data.map(function (d) {
-                            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                            return (0, normalize_1.normalizeArticle)(d);
-                        })
-                        : [];
-                    cache.set('articles', list, 60000);
-                    return [2 /*return*/, list];
-                case 3:
-                    _a = _b.sent();
-                    list = FALLBACK_ARTICLES.map(normalize_1.normalizeArticle);
-                    cache.set('articles', list, 30000);
-                    return [2 /*return*/, list];
-                case 4: return [2 /*return*/];
-            }
+    getArticles: function () {
+        var args_1 = [];
+        for (var _i = 0; _i < arguments.length; _i++) {
+            args_1[_i] = arguments[_i];
+        }
+        return __awaiter(void 0, __spreadArray([], args_1, true), void 0, function (options) {
+            var _a, strict, _b, noFallback, timeoutMs, _c, waitMs, _d, forceRefresh, langKey, cached, deadline, baseAttemptTimeout, fetchOnce, err_1, list;
+            if (options === void 0) { options = {}; }
+            return __generator(this, function (_e) {
+                switch (_e.label) {
+                    case 0:
+                        _a = options.strict, strict = _a === void 0 ? false : _a, _b = options.noFallback, noFallback = _b === void 0 ? false : _b, timeoutMs = options.timeoutMs, _c = options.waitMs, waitMs = _c === void 0 ? 0 : _c, _d = options.forceRefresh, forceRefresh = _d === void 0 ? false : _d;
+                        langKey = (0, lang_1.getPreferredLang)();
+                        if (!forceRefresh) {
+                            cached = cache.get("articles:".concat(langKey));
+                            if (cached)
+                                return [2 /*return*/, cached];
+                        }
+                        deadline = waitMs > 0 ? Date.now() + waitMs : 0;
+                        baseAttemptTimeout = timeoutMs || (strict ? 20000 : undefined);
+                        fetchOnce = function () { return __awaiter(void 0, void 0, void 0, function () {
+                            var lang, path, remaining, effectiveTimeout, data, payload, arr, d, maybeItems, maybeClusters, maybeItems, maybeClusters, list, ttl;
+                            return __generator(this, function (_a) {
+                                switch (_a.label) {
+                                    case 0:
+                                        lang = (0, lang_1.getPreferredLang)();
+                                        path = "/feed?lang=".concat(encodeURIComponent(lang)).concat(strict ? "&strict=1" : "");
+                                        remaining = deadline ? Math.max(0, deadline - Date.now()) : 0;
+                                        effectiveTimeout = remaining
+                                            ? Math.max(1000, Math.min(baseAttemptTimeout !== null && baseAttemptTimeout !== void 0 ? baseAttemptTimeout : remaining, remaining))
+                                            : baseAttemptTimeout;
+                                        return [4 /*yield*/, (0, fetcher_1.apiFetch)({
+                                                path: path,
+                                                headers: { "Accept-Language": lang },
+                                                timeoutMs: effectiveTimeout,
+                                                retries: 0,
+                                            })];
+                                    case 1:
+                                        data = _a.sent();
+                                        payload = data;
+                                        arr = [];
+                                        if (Array.isArray(payload)) {
+                                            arr = payload;
+                                        }
+                                        else if (payload &&
+                                            typeof payload === "object" &&
+                                            "data" in payload) {
+                                            d = payload.data;
+                                            if (Array.isArray(d))
+                                                arr = d;
+                                            else if (d && typeof d === "object") {
+                                                maybeItems = d.items;
+                                                maybeClusters = d.clusters;
+                                                if (Array.isArray(maybeItems))
+                                                    arr = maybeItems;
+                                                else if (Array.isArray(maybeClusters))
+                                                    arr = maybeClusters;
+                                            }
+                                        }
+                                        else if (payload && typeof payload === "object") {
+                                            maybeItems = payload.items;
+                                            maybeClusters = payload.clusters;
+                                            if (Array.isArray(maybeItems))
+                                                arr = maybeItems;
+                                            else if (Array.isArray(maybeClusters))
+                                                arr = maybeClusters;
+                                        }
+                                        list = arr.map(function (c) {
+                                            var _a;
+                                            var base = {
+                                                id: c.id,
+                                                title: c.ai_title || c.title,
+                                                // Try multiple potential fields for summary to handle backend variance
+                                                summary: c.ai_summary ||
+                                                    c.summary ||
+                                                    c.short_summary ||
+                                                    c.summary_text ||
+                                                    c.desc ||
+                                                    "",
+                                                category: c.category || "general",
+                                                language: (0, lang_1.normalizeLang)(c.lang || c.language || lang),
+                                                source: c.top_source || c.source || "Various",
+                                                published_at: c.representative_published_at ||
+                                                    c.updated_at ||
+                                                    new Date().toISOString(),
+                                                // Only include reading_time if backend provides a positive value; otherwise let normalizer compute
+                                                reading_time: typeof c.reading_time === "number" && c.reading_time > 0
+                                                    ? c.reading_time
+                                                    : undefined,
+                                                tags: c.tags || [],
+                                            };
+                                            // Preserve translation readiness if provided
+                                            base.translation_status = c.translation_status;
+                                            if (c.source_url || typeof c.source_url === "string")
+                                                base.source_url = c.source_url || undefined;
+                                            if (c.image_url || typeof c.image_url === "string")
+                                                base.image_url = c.image_url || undefined;
+                                            var mediaUrl = ((_a = c.media) === null || _a === void 0 ? void 0 : _a.url) || c.image_url;
+                                            if (mediaUrl) {
+                                                base.media = {
+                                                    id: "".concat(c.id, "-img"),
+                                                    origin: "publisher",
+                                                    url: mediaUrl,
+                                                };
+                                            }
+                                            return (0, normalize_1.normalizeArticle)(base);
+                                        });
+                                        ttl = list.length < 5 ? 5000 : 60000;
+                                        cache.set("articles:".concat(langKey), list, ttl);
+                                        return [2 /*return*/, list];
+                                }
+                            });
+                        }); };
+                        _e.label = 1;
+                    case 1:
+                        if (!true) return [3 /*break*/, 8];
+                        _e.label = 2;
+                    case 2:
+                        _e.trys.push([2, 4, , 7]);
+                        return [4 /*yield*/, fetchOnce()];
+                    case 3: return [2 /*return*/, _e.sent()];
+                    case 4:
+                        err_1 = _e.sent();
+                        if (!(deadline && Date.now() < deadline)) return [3 /*break*/, 6];
+                        // brief backoff before retrying
+                        return [4 /*yield*/, new Promise(function (r) { return setTimeout(r, 600); })];
+                    case 5:
+                        // brief backoff before retrying
+                        _e.sent();
+                        return [3 /*break*/, 1];
+                    case 6:
+                        if (noFallback)
+                            throw err_1;
+                        // Fall back to local sample data
+                        notifyFallback("articles fetch failed");
+                        list = FALLBACK_ARTICLES.map(function (a) {
+                            return (__assign(__assign({}, (0, normalize_1.normalizeArticle)(a)), { __origin: "fallback" }));
+                        });
+                        cache.set("articles:".concat(langKey), list, 30000);
+                        return [2 /*return*/, list];
+                    case 7: return [3 /*break*/, 1];
+                    case 8: return [2 /*return*/];
+                }
+            });
+        });
+    },
+    // Request batch translation for a set of cluster IDs (progressive fill)
+    translateBatch: function (clusterIds) { return __awaiter(void 0, void 0, void 0, function () {
+        var lang;
+        return __generator(this, function (_a) {
+            lang = (0, lang_1.getPreferredLang)();
+            return [2 /*return*/, (0, fetcher_1.apiFetch)({
+                    path: "/translate/batch?lang=".concat(encodeURIComponent(lang)),
+                    method: "POST",
+                    body: { ids: clusterIds, clusterIds: clusterIds },
+                    headers: { "Accept-Language": lang },
+                })];
         });
     }); },
     // Get specific article
     getArticle: function (id) { return __awaiter(void 0, void 0, void 0, function () {
-        var a, data, art, _a, fallback, art;
-        return __generator(this, function (_b) {
-            switch (_b.label) {
+        var langKey, a, lang, data, payload2, raw, firstCitation, firstTimeline, base, mediaUrl2, art, _a, fallback, art;
+        var _b, _c;
+        return __generator(this, function (_d) {
+            switch (_d.label) {
                 case 0:
-                    a = cache.get("article:".concat(id));
+                    langKey = (0, lang_1.getPreferredLang)();
+                    a = cache.get("article:".concat(id, ":").concat(langKey));
                     if (a)
                         return [2 /*return*/, a];
-                    _b.label = 1;
+                    _d.label = 1;
                 case 1:
-                    _b.trys.push([1, 3, , 4]);
-                    return [4 /*yield*/, (0, fetcher_1.apiFetch)({ path: "/articles/".concat(id) })];
+                    _d.trys.push([1, 3, , 4]);
+                    lang = (0, lang_1.getPreferredLang)();
+                    return [4 /*yield*/, (0, fetcher_1.apiFetch)({
+                            path: "/cluster/".concat(encodeURIComponent(id), "?lang=").concat(encodeURIComponent(lang)),
+                            headers: { "Accept-Language": lang },
+                        })];
                 case 2:
-                    data = _b.sent();
-                    art = (0, normalize_1.normalizeArticle)(data);
-                    cache.set("article:".concat(id), art, 120000);
+                    data = _d.sent();
+                    payload2 = data;
+                    raw = {};
+                    if (payload2 &&
+                        typeof payload2 === "object" &&
+                        "data" in payload2) {
+                        raw = (payload2.data || {});
+                    }
+                    else {
+                        raw = (payload2 || {});
+                    }
+                    firstCitation = raw.citations && raw.citations[0];
+                    firstTimeline = raw.timeline && raw.timeline[0];
+                    base = {
+                        id: raw.id || id,
+                        title: raw.ai_title || raw.title,
+                        // Broader summary fallback options in case backend uses different naming
+                        summary: raw.ai_summary ||
+                            raw.summary ||
+                            raw.short_summary ||
+                            raw.summary_text ||
+                            raw.desc ||
+                            "",
+                        // Map rich explanation field if available so detail page shows content
+                        ai_explanation: raw.ai_details || raw.details || raw.ai_explanation || null,
+                        category: raw.category || ((_b = raw.cluster) === null || _b === void 0 ? void 0 : _b.category) || "general",
+                        language: (0, lang_1.normalizeLang)(raw.lang || raw.language || lang),
+                        // Prefer citation source if present
+                        source: (firstCitation === null || firstCitation === void 0 ? void 0 : firstCitation.source_name) ||
+                            raw.top_source ||
+                            raw.source ||
+                            "Various",
+                        published_at: (firstTimeline === null || firstTimeline === void 0 ? void 0 : firstTimeline.happened_at) ||
+                            raw.representative_published_at ||
+                            raw.updated_at ||
+                            new Date().toISOString(),
+                        // Only include reading_time if backend provides a positive value; otherwise let normalizer compute
+                        reading_time: typeof raw.reading_time === "number" && raw.reading_time > 0
+                            ? raw.reading_time
+                            : undefined,
+                        tags: raw.tags || [],
+                    };
+                    // Prefer citation URL as source_url if available
+                    if ((firstCitation === null || firstCitation === void 0 ? void 0 : firstCitation.url) ||
+                        raw.source_url ||
+                        typeof raw.source_url === "string")
+                        base.source_url = (firstCitation === null || firstCitation === void 0 ? void 0 : firstCitation.url) || raw.source_url || undefined;
+                    mediaUrl2 = raw.image_url || ((_c = raw.media) === null || _c === void 0 ? void 0 : _c.url);
+                    if (mediaUrl2)
+                        base.media = {
+                            id: "".concat(id, "-img"),
+                            origin: "publisher",
+                            url: mediaUrl2,
+                        };
+                    art = (0, normalize_1.normalizeArticle)(base);
+                    cache.set("article:".concat(id, ":").concat(langKey), art, 120000);
                     return [2 /*return*/, art];
                 case 3:
-                    _a = _b.sent();
+                    _a = _d.sent();
                     fallback = FALLBACK_ARTICLES.find(function (a) { return a.id === id; });
                     if (!fallback)
                         throw new Error("Article not found");
-                    art = (0, normalize_1.normalizeArticle)(fallback);
-                    cache.set("article:".concat(id), art, 60000);
+                    notifyFallback("article fetch failed");
+                    art = __assign(__assign({}, (0, normalize_1.normalizeArticle)(fallback)), { __origin: "fallback" });
+                    cache.set("article:".concat(id, ":").concat(langKey), art, 60000);
                     return [2 /*return*/, art];
                 case 4: return [2 /*return*/];
             }
@@ -329,12 +546,24 @@ exports.newsApi = {
     }); },
     // Generate AI explanation for article
     generateExplanation: function (id) { return __awaiter(void 0, void 0, void 0, function () {
-        return __generator(this, function (_a) {
-            // Still relies on Edge Function (BFF route not implemented yet)
-            return [2 /*return*/, (0, fetcher_1.apiFetch)({
-                    path: "/articles/".concat(id, "/explanation"),
-                    method: "POST",
-                })];
+        var lang, prompt, resp, last;
+        var _a;
+        return __generator(this, function (_b) {
+            switch (_b.label) {
+                case 0:
+                    lang = (0, lang_1.getPreferredLang)();
+                    prompt = "Provide a detailed, neutral, well-structured explanation of this news story for a general audience. Include background, key points, and implications in 3-6 short paragraphs.";
+                    return [4 /*yield*/, (0, fetcher_1.apiFetch)({
+                            path: "/cluster/".concat(encodeURIComponent(id), "/chat?lang=").concat(encodeURIComponent(lang)),
+                            method: "POST",
+                            body: { message: prompt, chatHistory: [] },
+                            headers: { "Accept-Language": lang },
+                        })];
+                case 1:
+                    resp = _b.sent();
+                    last = (_a = resp.messages) === null || _a === void 0 ? void 0 : _a[resp.messages.length - 1];
+                    return [2 /*return*/, { explanation: (last === null || last === void 0 ? void 0 : last.content) || "" }];
+            }
         });
     }); },
     // Create new article
@@ -372,20 +601,28 @@ exports.aiApi = {
             args_1[_i - 2] = arguments[_i];
         }
         return __awaiter(void 0, __spreadArray([articleId_1, message_1], args_1, true), void 0, function (articleId, message, chatHistory) {
+            var lang;
             if (chatHistory === void 0) { chatHistory = []; }
             return __generator(this, function (_a) {
+                lang = (0, lang_1.getPreferredLang)();
                 return [2 /*return*/, (0, fetcher_1.apiFetch)({
-                        path: "/chat/".concat(articleId),
+                        path: "/cluster/".concat(encodeURIComponent(articleId), "/chat?lang=").concat(encodeURIComponent(lang)),
                         method: "POST",
                         body: { message: message, chatHistory: chatHistory },
+                        headers: { "Accept-Language": lang },
                     })];
             });
         });
     },
     // Get chat history
     getChatHistory: function (articleId) { return __awaiter(void 0, void 0, void 0, function () {
+        var lang;
         return __generator(this, function (_a) {
-            return [2 /*return*/, (0, fetcher_1.apiFetch)({ path: "/chat/".concat(articleId) })];
+            lang = (0, lang_1.getPreferredLang)();
+            return [2 /*return*/, (0, fetcher_1.apiFetch)({
+                    path: "/cluster/".concat(encodeURIComponent(articleId), "/chat?lang=").concat(encodeURIComponent(lang)),
+                    headers: { "Accept-Language": lang },
+                })];
         });
     }); },
 };

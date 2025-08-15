@@ -6,7 +6,7 @@ import type { ArticleDetail } from '../types/models';
 import { useUser } from '../contexts/useUser';
 
 interface NewsCardProps {
-  article: ArticleDetail;
+  article: ArticleDetail & { translation_status?: 'ready' | 'pending' };
   featured?: boolean;
 }
 
@@ -70,10 +70,11 @@ const NewsCard: React.FC<NewsCardProps> = ({ article, featured = false }) => {
         {t('illustrationLabel')}
             </span>
           )}
-          <div className="absolute top-3 left-3">
+          <div className="absolute top-3 left-3 flex items-center gap-2">
             <span className="bg-blue-600 text-white px-2 py-1 rounded text-xs font-medium">
               {article.category}
             </span>
+
           </div>
           {article.audio_summary_url && user?.preferences.audioPreferences && (
             <div className="absolute top-3 right-3">
@@ -113,6 +114,12 @@ const NewsCard: React.FC<NewsCardProps> = ({ article, featured = false }) => {
           {/* Summary */}
           <p className="text-gray-600 dark:text-gray-400 text-sm mb-3">
             {article.summary}
+
+            {article.translation_status === 'pending' && (
+              <span className="bg-amber-500 text-white px-2 py-1 rounded text-[10px] font-medium">
+                {t('translatingLabel')}
+              </span>
+            )}
           </p>
 
           {/* Bias and Sentiment Indicators */}

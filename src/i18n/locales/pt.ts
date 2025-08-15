@@ -9,6 +9,7 @@ export const pt = {
   compareCoverage: "Comparar cobertura",
   minutesRead: "{minutes} min de leitura",
   generating: "Gerando...",
+  translatingLabel: "Traduzindo…",
   illustrationLabel: "Ilustração",
   failedToLoadNews: "Falha ao carregar notícias",
   retry: "Tentar novamente",
