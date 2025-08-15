@@ -3,6 +3,7 @@ import { useParams, Link } from 'react-router-dom';
 import { ArrowLeft, CheckCircle, XCircle, Award, RotateCcw } from 'lucide-react';
 import { useNews } from '../contexts/useNews';
 import type { ArticleDetail, Quiz as QuizType } from '../types/models';
+import { t } from '../i18n';
 
 const QuizPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -30,16 +31,16 @@ const QuizPage: React.FC = () => {
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
         <div className="text-center">
           <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">
-            Quiz Not Available
+            {t('quizNotAvailable')}
           </h2>
           <p className="text-gray-600 dark:text-gray-400 mb-6">
-            No quiz is available for this article.
+            {t('quizNotAvailableDesc')}
           </p>
           <Link
             to="/"
             className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors"
           >
-            Back to Home
+            {t('backToHome')}
           </Link>
         </div>
       </div>
@@ -96,7 +97,7 @@ const QuizPage: React.FC = () => {
             className="inline-flex items-center space-x-2 text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 mb-6 transition-colors"
           >
             <ArrowLeft className="w-4 h-4" />
-            <span>Back to Article</span>
+            <span>{t('backToArticle')}</span>
           </Link>
 
           <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-8 text-center">
@@ -113,11 +114,11 @@ const QuizPage: React.FC = () => {
             </div>
 
             <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
-              Quiz Complete!
+              {t('quizComplete')}
             </h1>
             
             <p className="text-gray-600 dark:text-gray-400 mb-6">
-              You scored {score} out of {quiz.questions.length} questions correctly
+              {t('resultsScoredLine', { score, total: quiz.questions.length })}
             </p>
 
             <div className={`text-4xl font-bold mb-6 ${
@@ -134,14 +135,14 @@ const QuizPage: React.FC = () => {
                 className="flex items-center space-x-2 px-6 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
               >
                 <RotateCcw className="w-4 h-4" />
-                <span>Retake Quiz</span>
+                <span>{t('retakeQuiz')}</span>
               </button>
               
               <Link
                 to={`/news/${article.id}`}
                 className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
               >
-                Back to Article
+                {t('backToArticle')}
               </Link>
             </div>
           </div>
@@ -158,17 +159,17 @@ const QuizPage: React.FC = () => {
           className="inline-flex items-center space-x-2 text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 mb-6 transition-colors"
         >
           <ArrowLeft className="w-4 h-4" />
-          <span>Back to Article</span>
+          <span>{t('backToArticle')}</span>
         </Link>
 
         <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg overflow-hidden">
           {/* Header */}
           <div className="bg-gradient-to-r from-blue-600 to-indigo-700 p-6 text-white">
-            <h1 className="text-xl font-bold mb-2">Knowledge Quiz</h1>
+            <h1 className="text-xl font-bold mb-2">{t('knowledgeQuizTitle')}</h1>
             <p className="text-blue-100 mb-4">{article.title}</p>
             <div className="flex justify-between items-center text-sm">
-              <span>Question {currentQuestion + 1} of {quiz.questions.length}</span>
-              <span>{Math.round(((currentQuestion + 1) / quiz.questions.length) * 100)}% Complete</span>
+              <span>{t('questionCounter', { current: currentQuestion + 1, total: quiz.questions.length })}</span>
+              <span>{t('percentComplete', { percent: Math.round(((currentQuestion + 1) / quiz.questions.length) * 100) })}</span>
             </div>
             <div className="w-full bg-blue-500 rounded-full h-2 mt-2">
               <div 
@@ -222,7 +223,7 @@ const QuizPage: React.FC = () => {
             {showExplanation && (
               <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4 mb-6">
                 <h3 className="font-semibold text-blue-800 dark:text-blue-300 mb-2">
-                  Explanation
+                  {t('explanationLabel')}
                 </h3>
                 <p className="text-blue-700 dark:text-blue-300">
                   {currentQ.explanation}
@@ -233,7 +234,7 @@ const QuizPage: React.FC = () => {
             {/* Actions */}
             <div className="flex justify-between">
               <div className="text-sm text-gray-500 dark:text-gray-400">
-                {answers.length > 0 && `Score so far: ${calculateScore()}/${answers.length}`}
+                {answers.length > 0 && t('scoreSoFar', { score: calculateScore(), answered: answers.length })}
               </div>
               
               <div className="space-x-2">
@@ -242,7 +243,7 @@ const QuizPage: React.FC = () => {
                     onClick={handleShowExplanation}
                     className="px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
                   >
-                    Show Answer
+                    {t('showAnswer')}
                   </button>
                 )}
                 
@@ -251,7 +252,7 @@ const QuizPage: React.FC = () => {
                     onClick={handleNextQuestion}
                     className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
                   >
-                    {currentQuestion < quiz.questions.length - 1 ? 'Next Question' : 'View Results'}
+                    {currentQuestion < quiz.questions.length - 1 ? t('nextQuestion') : t('viewResults')}
                   </button>
                 )}
               </div>

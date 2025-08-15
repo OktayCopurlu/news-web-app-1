@@ -1,4 +1,5 @@
 import React from 'react';
+import { t } from '../i18n';
 import { Link } from 'react-router-dom';
 
 interface UICategory {
@@ -16,13 +17,13 @@ interface CategoryFilterProps {
 
 // Fallback base list if dynamic categories not provided
 const DEFAULT_CATEGORIES: UICategory[] = [
-  { id: 'all', name: 'All', emoji: '📰' },
-  { id: 'general', name: 'General', emoji: '📌' },
-  { id: 'world', name: 'World', emoji: '🌍' },
-  { id: 'uk', name: 'UK', emoji: '🇬🇧' },
-  { id: 'sports', name: 'Sports', emoji: '🏅' },
-  { id: 'football', name: 'Football', emoji: '⚽' },
-  { id: 'transfers', name: 'Transfers', emoji: '🔁' },
+  { id: 'all', name: t('catAll'), emoji: '📰' },
+  { id: 'general', name: t('catGeneral'), emoji: '📌' },
+  { id: 'world', name: t('catWorld'), emoji: '🌍' },
+  { id: 'uk', name: t('catUK'), emoji: '🇬🇧' },
+  { id: 'sports', name: t('catSports'), emoji: '🏅' },
+  { id: 'football', name: t('catFootball'), emoji: '⚽' },
+  { id: 'transfers', name: t('catTransfers'), emoji: '🔁' },
 ];
 
 const CategoryFilter: React.FC<CategoryFilterProps> = ({ selectedCategory, onCategoryChange, categories }) => {

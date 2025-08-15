@@ -1,18 +1,22 @@
 import React from 'react';
+import { t } from '../i18n';
 import { AlertTriangle, CheckCircle, Info } from 'lucide-react';
-import { NewsArticle } from '../contexts/NewsContext';
+import type { ArticleDetail } from '../types/models';
 
-interface BiasIndicatorProps {
-  article: NewsArticle;
-}
+type ArticleWithAnalysis = ArticleDetail & {
+  bias: { score: number; explanation: string; sources: string[] };
+  sentiment: { score: number; label: string };
+};
+
+interface BiasIndicatorProps { article: ArticleWithAnalysis }
 
 const BiasIndicator: React.FC<BiasIndicatorProps> = ({ article }) => {
   const getBiasLevel = (score: number) => {
     const absScore = Math.abs(score);
-    if (absScore < 0.1) return { level: 'neutral', label: 'Neutral', color: 'green' };
-    if (absScore < 0.3) return { level: 'slight', label: 'Slight Bias', color: 'yellow' };
-    if (absScore < 0.6) return { level: 'moderate', label: 'Moderate Bias', color: 'orange' };
-    return { level: 'high', label: 'High Bias', color: 'red' };
+  if (absScore < 0.1) return { level: 'neutral', label: t('biasNeutral'), color: 'green' };
+  if (absScore < 0.3) return { level: 'slight', label: t('biasSlightPositive'), color: 'yellow' };
+  if (absScore < 0.6) return { level: 'moderate', label: t('biasSlightNegative'), color: 'orange' };
+  return { level: 'high', label: t('biasNegative'), color: 'red' };
   };
 
   const getSentimentIcon = (label: string) => {
@@ -32,7 +36,7 @@ const BiasIndicator: React.FC<BiasIndicatorProps> = ({ article }) => {
         <Info className="w-5 h-5 text-blue-600 dark:text-blue-400 mt-0.5" />
         <div className="flex-1">
           <h3 className="font-semibold text-blue-800 dark:text-blue-300 mb-2">
-            Bias & Sentiment Analysis
+            {t('biasLabel')} & {t('sentimentLabel')} Analysis
           </h3>
           
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-3">
@@ -40,7 +44,7 @@ const BiasIndicator: React.FC<BiasIndicatorProps> = ({ article }) => {
             <div>
               <div className="flex items-center justify-between mb-2">
                 <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                  Bias Level
+                  {t('biasLabel')} Level
                 </span>
                 <div className="flex items-center space-x-1">
                   {bias.level === 'neutral' ? (
@@ -60,7 +64,7 @@ const BiasIndicator: React.FC<BiasIndicatorProps> = ({ article }) => {
                 />
               </div>
               <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">
-                {isPositiveBias ? 'Leans positive' : 'Leans negative'} ({Math.abs(article.bias.score * 100).toFixed(0)}%)
+                {isPositiveBias ? t('biasPositive') : t('biasNegative')} ({Math.abs(article.bias.score * 100).toFixed(0)}%)
               </p>
             </div>
 
@@ -68,7 +72,7 @@ const BiasIndicator: React.FC<BiasIndicatorProps> = ({ article }) => {
             <div>
               <div className="flex items-center justify-between mb-2">
                 <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                  Sentiment
+                  {t('sentimentLabel')}
                 </span>
                 <div className="flex items-center space-x-1">
                   <span className="text-lg">{getSentimentIcon(article.sentiment.label)}</span>

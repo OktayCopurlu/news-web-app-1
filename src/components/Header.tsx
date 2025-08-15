@@ -4,6 +4,7 @@ import { Search, Menu, X, Sun, Moon, Globe, User, Bell } from 'lucide-react';
 import { useTheme } from '../contexts/useTheme';
 import { useUser } from '../contexts/useUser';
 import { useNews } from '../contexts/useNews';
+import { t } from '../i18n';
 
 const Header: React.FC = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -23,10 +24,21 @@ const Header: React.FC = () => {
     }
   };
 
-  const categories = [
-    'All', 'Politics', 'Technology', 'Health', 'Environment', 
-    'Finance', 'Sports', 'Entertainment', 'Science'
-  ];
+  const categoryIds = ['all','politics','technology','health','environment','finance','sports','entertainment','science'] as const;
+  const categoryLabel = (id: string) => {
+    switch (id) {
+      case 'all': return t('catAll');
+      case 'technology': return t('catTechnology');
+      case 'health': return t('catHealth');
+      case 'environment': return t('catEnvironment');
+      case 'finance': return t('catFinance');
+      case 'sports': return t('catSports');
+      case 'entertainment': return t('catEntertainment');
+      case 'science': return t('catScience');
+      case 'politics': return t('catPolitics');
+      default: return id.charAt(0).toUpperCase() + id.slice(1);
+    }
+  };
 
   return (
     <header className="bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700 sticky top-0 z-50">
@@ -45,13 +57,13 @@ const Header: React.FC = () => {
           {/* Desktop Navigation */}
           <nav className="hidden md:flex items-center space-x-8">
             <div className="flex items-center space-x-6">
-              {categories.slice(0, 6).map((category) => (
+        {categoryIds.slice(0, 6).map((id) => (
                 <Link
-                  key={category}
-                  to={`/?category=${category.toLowerCase()}`}
+          key={id}
+          to={`/?category=${id}`}
                   className="text-gray-600 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors text-sm font-medium"
                 >
-                  {category}
+          {categoryLabel(id)}
                 </Link>
               ))}
             </div>
@@ -96,7 +108,7 @@ const Header: React.FC = () => {
                 to="/onboarding"
                 className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors"
               >
-                Get Started
+                {t('getStarted')}
               </Link>
             )}
 
@@ -110,8 +122,8 @@ const Header: React.FC = () => {
           </div>
         </div>
 
-        {/* Search Bar */}
-        {showSearch && (
+  {/* Search Bar */}
+  {showSearch && (
           <div className="py-4 border-t border-gray-200 dark:border-gray-700">
             <form onSubmit={handleSearch} className="max-w-md mx-auto">
               <div className="relative">
@@ -119,7 +131,7 @@ const Header: React.FC = () => {
                   type="text"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Search news articles..."
+                  placeholder={t('searchPlaceholder')}
                   className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   autoFocus
                 />
@@ -128,19 +140,17 @@ const Header: React.FC = () => {
             </form>
           </div>
         )}
-
-        {/* Mobile Menu */}
         {isMenuOpen && (
           <div className="md:hidden py-4 border-t border-gray-200 dark:border-gray-700">
             <nav className="flex flex-col space-y-3">
-              {categories.map((category) => (
+        {categoryIds.map((id) => (
                 <Link
-                  key={category}
-                  to={`/?category=${category.toLowerCase()}`}
+          key={id}
+          to={`/?category=${id}`}
                   className="text-gray-600 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors text-sm font-medium px-2 py-1"
                   onClick={() => setIsMenuOpen(false)}
                 >
-                  {category}
+          {categoryLabel(id)}
                 </Link>
               ))}
               <hr className="border-gray-200 dark:border-gray-700" />
@@ -149,7 +159,7 @@ const Header: React.FC = () => {
                 className="text-gray-600 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors text-sm font-medium px-2 py-1"
                 onClick={() => setIsMenuOpen(false)}
               >
-                Archive
+                {t('browseArchive')}
               </Link>
             </nav>
           </div>

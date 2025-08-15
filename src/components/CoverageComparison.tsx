@@ -1,5 +1,6 @@
 import React from 'react';
 import { BarChart3, ExternalLink } from 'lucide-react';
+import { t } from '../i18n';
 
 interface CoverageComparisonProps {
   comparisons: {
@@ -19,9 +20,9 @@ const CoverageComparison: React.FC<CoverageComparisonProps> = ({ comparisons }) 
 
   const getBiasLabel = (bias: number) => {
     const absBias = Math.abs(bias);
-    if (absBias < 0.2) return 'Neutral';
-    if (absBias < 0.5) return bias > 0 ? 'Slightly Positive' : 'Slightly Negative';
-    return bias > 0 ? 'Positive' : 'Negative';
+    if (absBias < 0.2) return t('biasNeutral');
+    if (absBias < 0.5) return bias > 0 ? t('biasSlightPositive') : t('biasSlightNegative');
+    return bias > 0 ? t('biasPositive') : t('biasNegative');
   };
 
   return (
@@ -29,12 +30,12 @@ const CoverageComparison: React.FC<CoverageComparisonProps> = ({ comparisons }) 
       <div className="flex items-center space-x-2 mb-4">
         <BarChart3 className="w-5 h-5 text-orange-600 dark:text-orange-400" />
         <h3 className="font-semibold text-orange-800 dark:text-orange-300">
-          Coverage Comparison
+          {t('coverageComparisonTitle')}
         </h3>
       </div>
 
       <p className="text-sm text-orange-700 dark:text-orange-300 mb-4">
-        See how different news sources are covering this story:
+        {t('coverageComparisonSubtitle')}
       </p>
 
       <div className="space-y-3">
@@ -58,7 +59,7 @@ const CoverageComparison: React.FC<CoverageComparisonProps> = ({ comparisons }) 
             
             {/* Bias visualization */}
             <div className="mt-2 flex items-center space-x-2">
-              <span className="text-xs text-gray-500 dark:text-gray-400">Bias:</span>
+              <span className="text-xs text-gray-500 dark:text-gray-400">{t('biasLabel')}</span>
               <div className="flex-1 bg-gray-200 dark:bg-gray-700 rounded-full h-1.5">
                 <div
                   className={`h-1.5 rounded-full ${

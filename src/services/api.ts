@@ -1,6 +1,7 @@
 // Frontend requests go through the BFF only (no direct Supabase client).
 // Transitional monolith API facade – can be split into domain-specific modules later.
 import { apiFetch } from "../utils/fetcher";
+import { getPreferredLang, normalizeLang } from "../utils/lang";
 import { normalizeArticle } from "../utils/normalize";
 import type {
   Quiz,
@@ -11,8 +12,8 @@ import type {
 // Local fallback sample data (dev/demo only)
 // Simple in-memory TTL cache (reset on reload)
 
-interface CacheEntry {
-  value: any;
+interface CacheEntry<T = unknown> {
+  value: T | unknown;
   expires: number;
 }
 const _cache = new Map<string, CacheEntry>();
@@ -27,8 +28,7 @@ const cache = {
     }
     return e.value as T;
   },
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  set(key: string, value: any, ttlMs: number) {
+  set(key: string, value: unknown, ttlMs: number) {
     _cache.set(key, { value, expires: now() + ttlMs });
   },
   clear(prefix?: string) {
@@ -255,26 +255,109 @@ function notifyFallback(reason: string) {
 export const newsApi = {
   // Fetch all articles
   getArticles: async () => {
-    if (cache.get("articles")) return cache.get("articles");
-    // Prefer BFF for article list; fallback to Edge Function if it fails
+    const langKey = getPreferredLang();
+    if (cache.get(`articles:${langKey}`))
+      return cache.get(`articles:${langKey}`);
+    // Prefer BFF for article list; fallback to local sample if it fails
     try {
+      const lang = getPreferredLang();
       const data = await apiFetch<unknown>({
-        path: "/articles?includeMedia=true",
+        path: `/feed?lang=${encodeURIComponent(lang)}`,
+        headers: { "Accept-Language": lang },
       });
-      // Accept either array or envelope { success, data }
-
-      const arr = Array.isArray(data)
-        ? (data as any[])
-        : data && (data as any).data
-        ? ((data as any).data as any[])
-        : [];
-      const list = arr.map((d) => {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        return normalizeArticle(d as any);
+      // BFF returns an envelope { data: ClusterSummary[] }
+      // Map to Article cards using ai_title/ai_summary as title/summary
+      type ClusterCard = {
+        id: string;
+        ai_title?: string;
+        title?: string;
+        ai_summary?: string;
+        summary?: string;
+        short_summary?: string;
+        summary_text?: string;
+        desc?: string;
+        category?: string;
+        lang?: string;
+        language?: string;
+        top_source?: string;
+        source?: string;
+        source_url?: string | null;
+        image_url?: string | null;
+        representative_published_at?: string;
+        updated_at?: string;
+        reading_time?: number;
+        tags?: string[];
+        media?: { url?: string } | null;
+      };
+      type RawInput = Parameters<typeof normalizeArticle>[0];
+      const payload: unknown = data;
+      let arr: ClusterCard[] = [];
+      if (Array.isArray(payload)) {
+        arr = payload as ClusterCard[];
+      } else if (
+        payload &&
+        typeof payload === "object" &&
+        "data" in (payload as Record<string, unknown>)
+      ) {
+        const d = (payload as { data: unknown }).data;
+        if (Array.isArray(d)) arr = d as ClusterCard[];
+        else if (d && typeof d === "object") {
+          const maybeItems = (d as Record<string, unknown>).items;
+          const maybeClusters = (d as Record<string, unknown>).clusters;
+          if (Array.isArray(maybeItems)) arr = maybeItems as ClusterCard[];
+          else if (Array.isArray(maybeClusters))
+            arr = maybeClusters as ClusterCard[];
+        }
+      } else if (payload && typeof payload === "object") {
+        const maybeItems = (payload as Record<string, unknown>).items;
+        const maybeClusters = (payload as Record<string, unknown>).clusters;
+        if (Array.isArray(maybeItems)) arr = maybeItems as ClusterCard[];
+        else if (Array.isArray(maybeClusters))
+          arr = maybeClusters as ClusterCard[];
+      }
+      const list = arr.map((c) => {
+        const base: Partial<RawInput> & { id: string } = {
+          id: c.id,
+          title: c.ai_title || c.title,
+          // Try multiple potential fields for summary to handle backend variance
+          summary:
+            c.ai_summary ||
+            c.summary ||
+            c.short_summary ||
+            c.summary_text ||
+            c.desc ||
+            "",
+          category: c.category || "general",
+          language: normalizeLang(c.lang || c.language || lang),
+          source: c.top_source || c.source || "Various",
+          published_at:
+            c.representative_published_at ||
+            c.updated_at ||
+            new Date().toISOString(),
+          // Only include reading_time if backend provides a positive value; otherwise let normalizer compute
+          reading_time:
+            typeof c.reading_time === "number" && c.reading_time > 0
+              ? c.reading_time
+              : undefined,
+          tags: c.tags || [],
+        };
+        if (c.source_url || typeof c.source_url === "string")
+          base.source_url = c.source_url || undefined;
+        if (c.image_url || typeof c.image_url === "string")
+          base.image_url = c.image_url || undefined;
+        const mediaUrl = c.media?.url || c.image_url;
+        if (mediaUrl) {
+          base.media = {
+            id: `${c.id}-img`,
+            origin: "publisher",
+            url: mediaUrl,
+          } as RawInput["media"];
+        }
+        return normalizeArticle(base as RawInput);
       });
       // If we got an unexpectedly tiny list, avoid long caching so we can recover quickly after backend restarts.
       const ttl = list.length < 5 ? 5_000 : 60_000;
-      cache.set("articles", list, ttl);
+      cache.set(`articles:${langKey}`, list, ttl);
       return list;
     } catch {
       notifyFallback("articles fetch failed");
@@ -285,25 +368,134 @@ export const newsApi = {
             __origin: "fallback",
           } as unknown as ReturnType<typeof normalizeArticle>)
       );
-      cache.set("articles", list, 30_000);
+      cache.set(`articles:${langKey}`, list, 30_000);
       return list;
     }
   },
 
   // Get specific article
   getArticle: async (id: string) => {
-    const a = cache.get(`article:${id}`);
+    const langKey = getPreferredLang();
+    const a = cache.get(`article:${id}:${langKey}`);
     if (a) return a;
     try {
+      const lang = getPreferredLang();
       const data = await apiFetch<unknown>({
-        path: `/articles/${id}?includeMedia=true`,
+        path: `/cluster/${encodeURIComponent(id)}?lang=${encodeURIComponent(
+          lang
+        )}`,
+        headers: { "Accept-Language": lang },
       });
-      // Accept either direct object or envelope { success, data }
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const raw = data && (data as any).data ? (data as any).data : data;
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const art = normalizeArticle(raw as any);
-      cache.set(`article:${id}`, art, 120_000);
+      // BFF returns envelope { data: { cluster, ai_title, ai_summary, ai_details, dir, citations, media } }
+      // Map to ArticleDetail for the detail page
+      type ClusterDetail = {
+        id?: string;
+        ai_title?: string;
+        title?: string;
+        ai_summary?: string;
+        summary?: string;
+        short_summary?: string;
+        summary_text?: string;
+        desc?: string;
+        // Some responses may include a rich detail field
+        ai_details?: string;
+        details?: string;
+        ai_explanation?: string;
+        category?: string;
+        cluster?: { category?: string };
+        lang?: string;
+        language?: string;
+        top_source?: string;
+        source?: string;
+        source_url?: string | null;
+        image_url?: string | null;
+        media?: { url?: string } | null;
+        representative_published_at?: string;
+        updated_at?: string;
+        reading_time?: number;
+        tags?: string[];
+        dir?: string;
+        coverage_count?: number;
+        timeline?: Array<{
+          id: string;
+          text?: string;
+          language?: string;
+          translated_from?: string | null;
+          happened_at?: string; // ISO
+          source_id?: string;
+        }>;
+        citations?: Array<{
+          id: string;
+          title?: string;
+          url?: string;
+          source_id?: string;
+          source_name?: string;
+        }>;
+      };
+      const payload2: unknown = data;
+      let raw: ClusterDetail = {};
+      if (
+        payload2 &&
+        typeof payload2 === "object" &&
+        "data" in (payload2 as Record<string, unknown>)
+      ) {
+        raw = ((payload2 as { data: unknown }).data || {}) as ClusterDetail;
+      } else {
+        raw = (payload2 || {}) as ClusterDetail;
+      }
+      type RawInput2 = Parameters<typeof normalizeArticle>[0];
+      const firstCitation = raw.citations && raw.citations[0];
+      const firstTimeline = raw.timeline && raw.timeline[0];
+      const base: Partial<RawInput2> & { id: string } = {
+        id: raw.id || id,
+        title: raw.ai_title || raw.title,
+        // Broader summary fallback options in case backend uses different naming
+        summary:
+          raw.ai_summary ||
+          raw.summary ||
+          raw.short_summary ||
+          raw.summary_text ||
+          raw.desc ||
+          "",
+        // Map rich explanation field if available so detail page shows content
+        ai_explanation:
+          raw.ai_details || raw.details || raw.ai_explanation || null,
+        category: raw.category || raw.cluster?.category || "general",
+        language: normalizeLang(raw.lang || raw.language || lang),
+        // Prefer citation source if present
+        source:
+          firstCitation?.source_name ||
+          raw.top_source ||
+          raw.source ||
+          "Various",
+        published_at:
+          firstTimeline?.happened_at ||
+          raw.representative_published_at ||
+          raw.updated_at ||
+          new Date().toISOString(),
+        // Only include reading_time if backend provides a positive value; otherwise let normalizer compute
+        reading_time:
+          typeof raw.reading_time === "number" && raw.reading_time > 0
+            ? raw.reading_time
+            : undefined,
+        tags: raw.tags || [],
+      };
+      // Prefer citation URL as source_url if available
+      if (
+        firstCitation?.url ||
+        raw.source_url ||
+        typeof raw.source_url === "string"
+      )
+        base.source_url = firstCitation?.url || raw.source_url || undefined;
+      const mediaUrl2 = raw.image_url || raw.media?.url;
+      if (mediaUrl2)
+        base.media = {
+          id: `${id}-img`,
+          origin: "publisher",
+          url: mediaUrl2,
+        } as RawInput2["media"];
+      const art = normalizeArticle(base as RawInput2);
+      cache.set(`article:${id}:${langKey}`, art, 120_000);
       return art;
     } catch {
       const fallback = FALLBACK_ARTICLES.find((a) => a.id === id);
@@ -313,18 +505,34 @@ export const newsApi = {
         ...normalizeArticle(fallback),
         __origin: "fallback",
       } as unknown as ReturnType<typeof normalizeArticle>;
-      cache.set(`article:${id}`, art, 60_000);
+      cache.set(`article:${id}:${langKey}`, art, 60_000);
       return art;
     }
   },
 
   // Generate AI explanation for article
   generateExplanation: async (id: string) => {
-    // Still relies on Edge Function (BFF route not implemented yet)
-    return apiFetch<{ explanation: string }>({
-      path: `/articles/${id}/explanation`,
+    // Use BFF chat endpoint to synthesize a detailed explanation on-demand
+    const lang = getPreferredLang();
+    const prompt =
+      "Provide a detailed, neutral, well-structured explanation of this news story for a general audience. Include background, key points, and implications in 3-6 short paragraphs.";
+    const resp = await apiFetch<{
+      messages: {
+        id?: string;
+        type?: string;
+        content: string;
+        timestamp?: string;
+      }[];
+    }>({
+      path: `/cluster/${encodeURIComponent(id)}/chat?lang=${encodeURIComponent(
+        lang
+      )}`,
       method: "POST",
+      body: { message: prompt, chatHistory: [] },
+      headers: { "Accept-Language": lang },
     });
+    const last = resp.messages?.[resp.messages.length - 1];
+    return { explanation: last?.content || "" };
   },
 
   // Create new article
@@ -362,6 +570,7 @@ export const aiApi = {
       timestamp?: string;
     }> = []
   ) => {
+    const lang = getPreferredLang();
     return apiFetch<{
       messages: {
         id?: string;
@@ -370,14 +579,18 @@ export const aiApi = {
         timestamp?: string;
       }[];
     }>({
-      path: `/chat/${articleId}`,
+      path: `/cluster/${encodeURIComponent(
+        articleId
+      )}/chat?lang=${encodeURIComponent(lang)}`,
       method: "POST",
       body: { message, chatHistory },
+      headers: { "Accept-Language": lang },
     });
   },
 
   // Get chat history
   getChatHistory: async (articleId: string) => {
+    const lang = getPreferredLang();
     return apiFetch<{
       messages: {
         id?: string;
@@ -385,7 +598,12 @@ export const aiApi = {
         content: string;
         timestamp?: string;
       }[];
-    }>({ path: `/chat/${articleId}` });
+    }>({
+      path: `/cluster/${encodeURIComponent(
+        articleId
+      )}/chat?lang=${encodeURIComponent(lang)}`,
+      headers: { "Accept-Language": lang },
+    });
   },
 };
 

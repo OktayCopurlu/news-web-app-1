@@ -14,6 +14,7 @@ import { ArticleSkeleton } from './components/Skeleton';
 import { ToastProvider } from './contexts/useToast';
 import { useEffect } from 'react';
 import { useToast } from './contexts/useToast';
+import { getPreferredLang, setDocumentLangDir } from './utils/lang';
 
 function FallbackWatcher(){
   const { push } = useToast();
@@ -35,6 +36,16 @@ function App() {
         <NewsProvider>
           <ToastProvider>
             <FallbackWatcher />
+            {/* Set <html lang> and dir based on preferred language */}
+            {(() => {
+              // Small inline effect runner without adding a new component layer
+              // eslint-disable-next-line react-hooks/rules-of-hooks
+              useEffect(() => {
+                const lang = getPreferredLang();
+                setDocumentLangDir(lang);
+              }, []);
+              return null;
+            })()}
           <Router>
             <ErrorBoundary>
               <div className="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors">

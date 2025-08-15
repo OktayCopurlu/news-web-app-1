@@ -1,5 +1,6 @@
 import React from 'react';
 import { TrendingUp } from 'lucide-react';
+import { t } from '../i18n';
 
 const TrendingTopics: React.FC = () => {
   const trendingTopics = [
@@ -16,7 +17,7 @@ const TrendingTopics: React.FC = () => {
       <div className="flex items-center space-x-2 mb-4">
         <TrendingUp className="w-5 h-5 text-red-600" />
         <h2 className="text-lg font-bold text-gray-900 dark:text-white">
-          Trending Topics
+          {t('trendingTopics')}
         </h2>
       </div>
       
@@ -50,17 +51,17 @@ const TrendingTopics: React.FC = () => {
       {/* Quick Links */}
       <div className="mt-6 pt-4 border-t border-gray-200 dark:border-gray-700">
         <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-3">
-          Quick Links
+          {t('quickLinks')}
         </h3>
         <div className="space-y-2 text-sm">
           <a href="/archive" className="block text-blue-600 dark:text-blue-400 hover:underline">
-            Browse Archive
+            {t('browseArchive')}
           </a>
           <a href="/trending" className="block text-blue-600 dark:text-blue-400 hover:underline">
-            Trending Analysis
+            {t('trendingAnalysis')}
           </a>
           <a href="/sources" className="block text-blue-600 dark:text-blue-400 hover:underline">
-            Source Reliability
+            {t('sourceReliability')}
           </a>
         </div>
       </div>

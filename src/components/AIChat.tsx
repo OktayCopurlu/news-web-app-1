@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Send, Bot, User, Loader } from 'lucide-react';
 import { useNews } from '../contexts/useNews';
+import { t } from '../i18n';
 
 import type { ArticleDetail } from '../types/models';
 
@@ -19,7 +20,7 @@ const AIChat: React.FC<AIChatProps> = ({ article }) => {
     {
       id: '1',
       type: 'ai',
-      content: `Hi! I'm here to help you understand more about "${article.title}". What would you like to know?`,
+      content: t('aiChatIntro', { title: article.title }),
       timestamp: new Date()
     }
   ]);
@@ -63,7 +64,7 @@ const AIChat: React.FC<AIChatProps> = ({ article }) => {
       const errorResponse: ChatMessage = {
         id: (Date.now() + 1).toString(),
         type: 'ai',
-        content: "I'm sorry, I'm having trouble responding right now. Please try again later.",
+        content: t('aiChatError'),
         timestamp: new Date()
       };
       setMessages(prev => [...prev, errorResponse]);
@@ -85,7 +86,7 @@ const AIChat: React.FC<AIChatProps> = ({ article }) => {
         <div className="flex items-center space-x-2">
           <Bot className="w-5 h-5 text-blue-600 dark:text-blue-400" />
           <h3 className="font-semibold text-blue-800 dark:text-blue-300">
-            Ask AI More
+            {t('askAiMore')}
           </h3>
         </div>
       </div>
@@ -144,7 +145,7 @@ const AIChat: React.FC<AIChatProps> = ({ article }) => {
             value={inputMessage}
             onChange={(e) => setInputMessage(e.target.value)}
             onKeyPress={handleKeyPress}
-            placeholder="Ask me anything about this article..."
+            placeholder={t('aiChatPlaceholder')}
             className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             disabled={isLoading}
           />

@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { Clock, Eye, TrendingUp, Volume2 } from 'lucide-react';
+import { t } from '../i18n';
 import type { ArticleDetail } from '../types/models';
 import { useUser } from '../contexts/useUser';
 
@@ -17,8 +18,8 @@ const NewsCard: React.FC<NewsCardProps> = ({ article, featured = false }) => {
     const now = new Date();
     const diffInHours = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60));
     
-    if (diffInHours < 1) return 'Just now';
-    if (diffInHours < 24) return `${diffInHours}h ago`;
+  if (diffInHours < 1) return t('updatedJustNow');
+  if (diffInHours < 24) return `${diffInHours}h`;
     return date.toLocaleDateString();
   };
 
@@ -64,9 +65,9 @@ const NewsCard: React.FC<NewsCardProps> = ({ article, featured = false }) => {
             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
             loading="lazy"
           />
-          {media && (media.origin === 'ai_generated' || media.origin === 'og_card') && (
+      {media && (media.origin === 'ai_generated' || media.origin === 'og_card') && (
             <span className="absolute bottom-3 left-3 bg-black/70 text-white px-2 py-1 rounded text-xs font-medium">
-              Illustration
+        {t('illustrationLabel')}
             </span>
           )}
           <div className="absolute top-3 left-3">
@@ -94,7 +95,7 @@ const NewsCard: React.FC<NewsCardProps> = ({ article, featured = false }) => {
               </span>
               <span className="flex items-center space-x-1">
                 <Eye className="w-3 h-3" />
-                <span>{article.reading_time} min</span>
+                <span>{t('minutesRead', { minutes: article.reading_time })}</span>
               </span>
             </div>
             <span className="text-blue-600 dark:text-blue-400 font-medium">
@@ -119,14 +120,14 @@ const NewsCard: React.FC<NewsCardProps> = ({ article, featured = false }) => {
             <div className="flex items-center space-x-4 text-xs mb-3">
               <div className="flex items-center space-x-1">
                 <TrendingUp className="w-3 h-3" />
-                <span className="text-gray-500 dark:text-gray-400">Bias:</span>
+                <span className="text-gray-500 dark:text-gray-400">{t('biasLabel')}</span>
                 <span className={getBiasColor(article.article_analytics[0].bias_score)}>
-                  {Math.abs(article.article_analytics[0].bias_score) < 0.1 ? 'Neutral' :
-                   article.article_analytics[0].bias_score > 0 ? 'Positive' : 'Negative'}
+                  {Math.abs(article.article_analytics[0].bias_score) < 0.1 ? t('biasNeutral') :
+                   article.article_analytics[0].bias_score > 0 ? t('biasPositive') : t('biasNegative')}
                 </span>
               </div>
               <div className="flex items-center space-x-1">
-                <span className="text-gray-500 dark:text-gray-400">Sentiment:</span>
+                <span className="text-gray-500 dark:text-gray-400">{t('sentimentLabel')}</span>
                 <span className={getSentimentColor(article.article_analytics[0].sentiment_label)}>
                   {article.article_analytics[0].sentiment_label.charAt(0).toUpperCase() + article.article_analytics[0].sentiment_label.slice(1)}
                 </span>
@@ -144,9 +145,9 @@ const NewsCard: React.FC<NewsCardProps> = ({ article, featured = false }) => {
                 {tag}
               </span>
             ))}
-            {article.tags && article.tags.length > 3 && (
+      {article.tags && article.tags.length > 3 && (
               <span className="px-2 py-1 text-gray-500 dark:text-gray-400 text-xs">
-                +{article.tags.length - 3} more
+        +{article.tags.length - 3} {t('moreCoverage')}
               </span>
             )}
           </div>

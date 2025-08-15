@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Search, Calendar, Folder } from 'lucide-react';
 import { useNews } from '../contexts/useNews';
 import NewsCard from '../components/NewsCard';
+import { t } from '../i18n';
 
 const ArchivePage: React.FC = () => {
   const { articles } = useNews();
@@ -12,10 +13,10 @@ const ArchivePage: React.FC = () => {
 
   const categories = ['all', 'technology', 'health', 'environment', 'finance', 'space', 'cybersecurity'];
   const timeframes = [
-    { value: 'all', label: 'All Time' },
-    { value: 'today', label: 'Today' },
-    { value: 'week', label: 'This Week' },
-    { value: 'month', label: 'This Month' }
+    { value: 'all', label: t('filterAllTime') },
+    { value: 'today', label: t('filterToday') },
+    { value: 'week', label: t('filterThisWeek') },
+    { value: 'month', label: t('filterThisMonth') }
   ];
 
   React.useEffect(() => {
@@ -68,10 +69,10 @@ const ArchivePage: React.FC = () => {
         {/* Header */}
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
-            News Archive
+            {t('newsArchiveTitle')}
           </h1>
           <p className="text-gray-600 dark:text-gray-400">
-            Browse and search through all news articles
+            {t('newsArchiveSubtitle')}
           </p>
         </div>
 
@@ -85,7 +86,7 @@ const ArchivePage: React.FC = () => {
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search articles..."
+                placeholder={t('searchArticlesPlaceholder')}
                 className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               />
             </div>
@@ -100,7 +101,14 @@ const ArchivePage: React.FC = () => {
               >
                 {categories.map((category) => (
                   <option key={category} value={category}>
-                    {category.charAt(0).toUpperCase() + category.slice(1)}
+                    {category === 'all' ? t('catAll') :
+                     category === 'technology' ? t('catTechnology') :
+                     category === 'health' ? t('catHealth') :
+                     category === 'environment' ? t('catEnvironment') :
+                     category === 'finance' ? t('catFinance') :
+                     category === 'space' ? t('catSpace') :
+                     category === 'cybersecurity' ? t('catCybersecurity') :
+                     category}
                   </option>
                 ))}
               </select>
@@ -127,8 +135,9 @@ const ArchivePage: React.FC = () => {
         {/* Results */}
         <div className="mb-6">
           <p className="text-gray-600 dark:text-gray-400">
-            {filteredArticles.length} article{filteredArticles.length !== 1 ? 's' : ''} found
-            {searchQuery && ` for "${searchQuery}"`}
+            {searchQuery
+              ? t('resultsCountForQuery', { count: filteredArticles.length, plural: filteredArticles.length !== 1 ? 's' : '', query: searchQuery })
+              : t('resultsCount', { count: filteredArticles.length, plural: filteredArticles.length !== 1 ? 's' : '' })}
           </p>
         </div>
 
@@ -145,10 +154,10 @@ const ArchivePage: React.FC = () => {
               <Search className="w-8 h-8 text-gray-400" />
             </div>
             <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
-              No articles found
+              {t('archiveNoArticlesTitle')}
             </h3>
             <p className="text-gray-500 dark:text-gray-400">
-              Try adjusting your search terms or filters.
+              {t('archiveNoArticlesHint')}
             </p>
           </div>
         )}

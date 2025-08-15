@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ChevronRight, ChevronLeft, Check, Globe, BookOpen, Volume2 } from 'lucide-react';
 import { useUser } from '../contexts/useUser';
+import { t } from '../i18n';
 
 const OnboardingPage: React.FC = () => {
   const [currentStep, setCurrentStep] = useState(0);
@@ -18,11 +19,11 @@ const OnboardingPage: React.FC = () => {
   const navigate = useNavigate();
 
   const steps = [
-    { title: 'Welcome', subtitle: 'Let\'s personalize your news experience' },
-    { title: 'Basic Info', subtitle: 'Tell us about yourself' },
-    { title: 'Interests', subtitle: 'What topics interest you?' },
-    { title: 'Preferences', subtitle: 'Customize your reading experience' },
-    { title: 'Complete', subtitle: 'You\'re all set!' }
+    { title: t('stepWelcome'), subtitle: t('stepWelcomeSubtitle') },
+    { title: t('stepBasicInfo'), subtitle: t('stepBasicInfoSubtitle') },
+    { title: t('stepInterests'), subtitle: t('stepInterestsSubtitle') },
+    { title: t('stepPreferences'), subtitle: t('stepPreferencesSubtitle') },
+    { title: t('stepComplete'), subtitle: t('stepCompleteSubtitle') }
   ];
 
   const topics = [
@@ -87,7 +88,7 @@ const OnboardingPage: React.FC = () => {
         <div className="mb-8">
           <div className="flex justify-between items-center mb-2">
             <span className="text-sm font-medium text-gray-600 dark:text-gray-400">
-              Step {currentStep + 1} of {steps.length}
+              {t('stepLabel', { current: currentStep + 1, total: steps.length })}
             </span>
             <span className="text-sm text-gray-500 dark:text-gray-500">
               {Math.round(((currentStep + 1) / steps.length) * 100)}% Complete
@@ -121,25 +122,24 @@ const OnboardingPage: React.FC = () => {
                 </div>
                 <div>
                   <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
-                    Welcome to Insight
+                    {t('onboardingWelcome')}
                   </h2>
                   <p className="text-gray-600 dark:text-gray-400 leading-relaxed">
-                    Your AI-powered news aggregator that delivers personalized, unbiased news 
-                    from trusted sources worldwide. Let's set up your perfect news experience.
+                    {t('onboardingWelcomeBody')}
                   </p>
                 </div>
                 <div className="grid grid-cols-3 gap-4 mt-8">
                   <div className="text-center">
                     <Globe className="w-8 h-8 text-blue-600 mx-auto mb-2" />
-                    <p className="text-sm text-gray-600 dark:text-gray-400">Global Coverage</p>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">{t('featureGlobalCoverage')}</p>
                   </div>
                   <div className="text-center">
                     <BookOpen className="w-8 h-8 text-blue-600 mx-auto mb-2" />
-                    <p className="text-sm text-gray-600 dark:text-gray-400">AI Summaries</p>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">{t('featureAISummaries')}</p>
                   </div>
                   <div className="text-center">
                     <Volume2 className="w-8 h-8 text-blue-600 mx-auto mb-2" />
-                    <p className="text-sm text-gray-600 dark:text-gray-400">Audio Mode</p>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">{t('featureAudioMode')}</p>
                   </div>
                 </div>
               </div>
@@ -149,26 +149,26 @@ const OnboardingPage: React.FC = () => {
               <div className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Full Name
+                    {t('labelFullName')}
                   </label>
                   <input
                     type="text"
                     value={formData.name}
                     onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
                     className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    placeholder="Enter your full name"
+                    placeholder={t('placeholderFullName')}
                   />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Email Address
+                    {t('labelEmail')}
                   </label>
                   <input
                     type="email"
                     value={formData.email}
                     onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
                     className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    placeholder="Enter your email address"
+                    placeholder={t('placeholderEmail')}
                   />
                 </div>
               </div>
@@ -177,7 +177,7 @@ const OnboardingPage: React.FC = () => {
             {currentStep === 2 && (
               <div>
                 <p className="text-gray-600 dark:text-gray-400 mb-4">
-                  Select the topics you're most interested in (choose at least 3):
+                  {t('interestsPrompt')}
                 </p>
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                   {topics.map((topic) => (
@@ -204,7 +204,7 @@ const OnboardingPage: React.FC = () => {
               <div className="space-y-6">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
-                    Preferred Languages
+                    {t('preferredLanguages')}
                   </label>
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                     {languages.map((language) => (
@@ -225,13 +225,13 @@ const OnboardingPage: React.FC = () => {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
-                    Reading Level
+                    {t('readingLevel')}
                   </label>
                   <div className="space-y-2">
                     {[
-                      { value: 'beginner', label: 'Beginner', description: 'Simple summaries and explanations' },
-                      { value: 'intermediate', label: 'Intermediate', description: 'Balanced detail and accessibility' },
-                      { value: 'advanced', label: 'Advanced', description: 'Full technical details and analysis' }
+                      { value: 'beginner', label: t('levelBeginner'), description: t('levelBeginnerDesc') },
+                      { value: 'intermediate', label: t('levelIntermediate'), description: t('levelIntermediateDesc') },
+                      { value: 'advanced', label: t('levelAdvanced'), description: t('levelAdvancedDesc') }
                     ].map((level) => (
                       <button
                         key={level.value}
@@ -252,8 +252,8 @@ const OnboardingPage: React.FC = () => {
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
                     <div>
-                      <div className="font-medium text-gray-900 dark:text-white">Audio Summaries</div>
-                      <div className="text-sm text-gray-500 dark:text-gray-400">Listen to AI-generated audio summaries</div>
+                      <div className="font-medium text-gray-900 dark:text-white">{t('audioSummaries')}</div>
+                      <div className="text-sm text-gray-500 dark:text-gray-400">{t('audioSummariesDesc')}</div>
                     </div>
                     <button
                       onClick={() => setFormData(prev => ({ ...prev, audioPreferences: !prev.audioPreferences }))}
@@ -269,8 +269,8 @@ const OnboardingPage: React.FC = () => {
 
                   <div className="flex items-center justify-between">
                     <div>
-                      <div className="font-medium text-gray-900 dark:text-white">Bias Analysis</div>
-                      <div className="text-sm text-gray-500 dark:text-gray-400">Show bias indicators and source transparency</div>
+                      <div className="font-medium text-gray-900 dark:text-white">{t('biasAnalysisTitle')}</div>
+                      <div className="text-sm text-gray-500 dark:text-gray-400">{t('biasAnalysisDesc')}</div>
                     </div>
                     <button
                       onClick={() => setFormData(prev => ({ ...prev, biasAnalysis: !prev.biasAnalysis }))}
@@ -294,21 +294,20 @@ const OnboardingPage: React.FC = () => {
                 </div>
                 <div>
                   <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
-                    Perfect! You're all set up.
+                    {t('setupPerfectTitle')}
                   </h2>
                   <p className="text-gray-600 dark:text-gray-400 leading-relaxed">
-                    We've personalized your news feed based on your preferences. 
-                    You can always adjust these settings later in your profile.
+                    {t('setupPerfectBody')}
                   </p>
                 </div>
                 <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4 text-left">
-                  <h3 className="font-medium text-gray-900 dark:text-white mb-2">Your Setup:</h3>
+                  <h3 className="font-medium text-gray-900 dark:text-white mb-2">{t('yourSetup')}:</h3>
                   <ul className="text-sm text-gray-600 dark:text-gray-400 space-y-1">
-                    <li>• {formData.topics.length} topics selected</li>
-                    <li>• {formData.languages.length} languages</li>
-                    <li>• {formData.readingLevel} reading level</li>
-                    <li>• Audio summaries: {formData.audioPreferences ? 'Enabled' : 'Disabled'}</li>
-                    <li>• Bias analysis: {formData.biasAnalysis ? 'Enabled' : 'Disabled'}</li>
+                    <li>• {t('topicsSelected', { count: formData.topics.length })}</li>
+                    <li>• {t('languagesSelected', { count: formData.languages.length })}</li>
+                    <li>• {t('readingLevelSelected', { level: formData.readingLevel })}</li>
+                    <li>• {t('audioSummaries')}: {formData.audioPreferences ? t('enabled') : t('disabled')}</li>
+                    <li>• {t('biasAnalysisTitle')}: {formData.biasAnalysis ? t('enabled') : t('disabled')}</li>
                   </ul>
                 </div>
               </div>
@@ -327,7 +326,7 @@ const OnboardingPage: React.FC = () => {
               }`}
             >
               <ChevronLeft className="w-4 h-4" />
-              <span>Back</span>
+              <span>{t('back')}</span>
             </button>
 
             <div className="flex space-x-2">
@@ -355,7 +354,7 @@ const OnboardingPage: React.FC = () => {
                     : 'bg-blue-600 text-white hover:bg-blue-700'
                 }`}
               >
-                <span>Next</span>
+                <span>{t('next')}</span>
                 <ChevronRight className="w-4 h-4" />
               </button>
             ) : (
@@ -363,7 +362,7 @@ const OnboardingPage: React.FC = () => {
                 onClick={handleComplete}
                 className="flex items-center space-x-2 px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-all"
               >
-                <span>Get Started</span>
+                <span>{t('getStarted')}</span>
                 <Check className="w-4 h-4" />
               </button>
             )}

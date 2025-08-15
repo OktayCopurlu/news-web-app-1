@@ -1,5 +1,6 @@
 import React from 'react';
 import { TrendingUp, Clock } from 'lucide-react';
+import { t } from '../i18n';
 import { useNews } from '../contexts/useNews';
 import NewsCard from './NewsCard';
 
@@ -16,11 +17,11 @@ const TopHeadlines: React.FC = () => {
       <div className="flex items-center space-x-2 mb-6">
         <TrendingUp className="w-5 h-5 text-red-600" />
         <h2 className="text-xl font-bold text-gray-900 dark:text-white">
-          Top Headlines
+          {t('topHeadlines')}
         </h2>
         <div className="flex items-center space-x-1 text-sm text-gray-500 dark:text-gray-400">
           <Clock className="w-4 h-4" />
-          <span>Updated just now</span>
+          <span>{t('updatedJustNow')}</span>
         </div>
       </div>
 

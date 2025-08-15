@@ -5,6 +5,7 @@ import { Clock, Share2, Bookmark, MessageCircle, BarChart3, Eye, Brain, ArrowLef
 import { useNews } from '../contexts/useNews';
 import { useUser } from '../contexts/useUser';
 import { newsApi, quizApi, coverageApi } from '../services/api';
+import { t } from '../i18n';
 import BiasIndicator from '../components/BiasIndicator';
 import CoverageComparison from '../components/CoverageComparison';
 import AIChat from '../components/AIChat';
@@ -167,7 +168,7 @@ const NewsDetailPage: React.FC = () => {
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600 dark:text-gray-400">Loading article...</p>
+          <p className="text-gray-600 dark:text-gray-400">{t('loadingArticle')}</p>
         </div>
       </div>
     );
@@ -229,7 +230,7 @@ const NewsDetailPage: React.FC = () => {
           className="inline-flex items-center space-x-2 text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 mb-6 transition-colors"
         >
           <ArrowLeft className="w-4 h-4" />
-          <span>Back to News</span>
+          <span>{t('backToNews')}</span>
         </Link>
 
         {/* Article Header */}
@@ -348,7 +349,7 @@ const NewsDetailPage: React.FC = () => {
                 ) : (
                   <Brain className="w-4 h-4" />
                 )}
-                <span>{generatingELI5 ? 'Generating...' : 'Explain Like I\'m 5'}</span>
+                  <span>{generatingELI5 ? t('generating') : t('explainLikeIm5')}</span>
               </button>
               
               <button
@@ -360,7 +361,7 @@ const NewsDetailPage: React.FC = () => {
                 }`}
               >
                 <MessageCircle className="w-4 h-4" />
-                <span>Ask AI More</span>
+                <span>{t('askAiMore')}</span>
               </button>
               
               <button
@@ -375,7 +376,7 @@ const NewsDetailPage: React.FC = () => {
                 ) : (
                   <Eye className="w-4 h-4" />
                 )}
-                <span>{generatingQuiz ? 'Generating...' : 'Test Knowledge'}</span>
+                <span>{generatingQuiz ? t('generating') : t('knowledgeQuizTitle')}</span>
               </button>
             </div>
 
@@ -395,7 +396,7 @@ const NewsDetailPage: React.FC = () => {
                 ) : (
                   <BarChart3 className="w-4 h-4" />
                 )}
-                <span>{generatingCoverage ? 'Generating...' : 'Compare Coverage'}</span>
+                <span>{generatingCoverage ? t('generating') : t('compareCoverage')}</span>
               </button>
             </div>
 
@@ -404,10 +405,10 @@ const NewsDetailPage: React.FC = () => {
               <div className="mb-8 p-4 bg-purple-50 dark:bg-purple-900/20 rounded-lg border border-purple-200 dark:border-purple-800">
                 <h3 className="font-semibold text-purple-800 dark:text-purple-300 mb-2 flex items-center space-x-2">
                   <Brain className="w-4 h-4" />
-                  <span>Explain Like I'm 5</span>
+                  <span>{t('explainLikeIm5')}</span>
                 </h3>
                 <p className="text-purple-700 dark:text-purple-300">
-                  {article.eli5_summary || 'Generating simple explanation...'}
+                  {article.eli5_summary || t('generating')}
                 </p>
               </div>
             )}
