@@ -111,15 +111,6 @@ const NewsCard: React.FC<NewsCardProps> = ({ article, featured = false }) => {
             {article.title}
           </h2>
 
-          {/* Translated badge */}
-          {article.translation_status === 'ready' && (
-            <div className="mb-2">
-              <span className="inline-flex items-center gap-1 bg-green-100 dark:bg-green-900/20 text-green-700 dark:text-green-300 px-2 py-0.5 rounded-full text-[10px] font-medium">
-                <span className="inline-block w-1.5 h-1.5 bg-green-600 dark:bg-green-400 rounded-full"></span>
-                Translated
-              </span>
-            </div>
-          )}
 
           {/* Summary */}
           <p className="text-gray-600 dark:text-gray-400 text-sm mb-3">
