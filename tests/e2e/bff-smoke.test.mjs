@@ -37,20 +37,26 @@ async function req(path, options = {}) {
       console.log("[SKIP] BFF not reachable at", BFF);
       return process.exit(0);
     }
-    // 1. Articles list
-    const articlesRes = await req("/articles");
-    assert.ok(articlesRes.ok, "articles list request failed");
-    const articles = await articlesRes.json();
-    assert.ok(Array.isArray(articles), "articles not array");
-    console.log("Articles:", articles.length);
+    // 1. Feed list
+    const feedRes = await req("/feed");
+    assert.ok(feedRes.ok, "feed request failed");
+    const feedPayload = await feedRes.json();
+    const articles = Array.isArray(feedPayload)
+      ? feedPayload
+      : feedPayload?.data?.items ||
+        feedPayload?.data?.clusters ||
+        feedPayload?.data ||
+        [];
+    assert.ok(Array.isArray(articles), "feed not array-like");
+    console.log("Feed:", articles.length);
 
     // 2. First article detail (if any)
     if (articles[0]?.id) {
-      const detailRes = await req(`/articles/${articles[0].id}`);
-      assert.ok(detailRes.ok, "article detail request failed");
+      const detailRes = await req(`/cluster/${articles[0].id}`);
+      assert.ok(detailRes.ok, "cluster detail request failed");
       const detail = await detailRes.json();
       assert.strictEqual(detail.id, articles[0].id, "detail id mismatch");
-      console.log("Detail OK for", detail.id);
+      console.log("Cluster detail OK for", detail.id);
     }
 
     // 3. Unauthorized profile should 401/403

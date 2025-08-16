@@ -29,14 +29,20 @@ async function fetchJson(path) {
     const health = await fetchJson("/health");
     assert.ok(health.ok, "Health endpoint not ok");
 
-    const articles = await fetchJson("/articles");
-    assert.ok(Array.isArray(articles), "Articles not array");
-    console.log("Articles count:", articles.length);
+    const feedPayload = await fetchJson("/feed");
+    const articles = Array.isArray(feedPayload)
+      ? feedPayload
+      : feedPayload?.data?.items ||
+        feedPayload?.data?.clusters ||
+        feedPayload?.data ||
+        [];
+    assert.ok(Array.isArray(articles), "Feed not array-like");
+    console.log("Feed count:", articles.length);
 
     if (articles[0]) {
-      const detail = await fetchJson(`/articles/${articles[0].id}`);
+      const detail = await fetchJson(`/cluster/${articles[0].id}`);
       assert.ok(detail.id === articles[0].id, "Detail id mismatch");
-      console.log("Fetched detail for first article");
+      console.log("Fetched detail for first cluster");
     }
 
     console.log("BFF connection test PASSED");
