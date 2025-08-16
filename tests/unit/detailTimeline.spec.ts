@@ -1,33 +1,20 @@
+import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { newsApi } from "../../src/services/api";
-import { setPreferredLang } from "../../src/utils/lang";
 
-function setupLocalStorageMock() {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  (globalThis as any).localStorage = {
-    store: {} as Record<string, string>,
-    getItem(key: string) {
-      return this.store[key];
-    },
-    setItem(key: string, val: string) {
-      this.store[key] = String(val);
-    },
-    removeItem(key: string) {
-      delete this.store[key];
-    },
-    clear() {
-      this.store = {};
-    },
-  };
+declare global {
+  // eslint-disable-next-line no-var
+  var __origFetch: typeof fetch | undefined;
 }
 
-(async function run() {
-  setupLocalStorageMock();
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  (globalThis as any).window = { location: { href: "http://localhost/" } };
+describe("detail timeline mapping", () => {
+  beforeEach(() => {
+    global.__origFetch = globalThis.fetch;
+  });
+  afterEach(() => {
+    if (global.__origFetch) globalThis.fetch = global.__origFetch;
+  });
 
-  setPreferredLang("en");
-  const originalFetch = globalThis.fetch;
-  try {
+  it("maps timeline and citations from envelope", async () => {
     globalThis.fetch = (async (url: string | URL) => {
       const u = String(url);
       if (u.includes("/cluster/")) {
@@ -72,14 +59,8 @@ function setupLocalStorageMock() {
     }) as unknown as typeof fetch;
 
     const detail = await newsApi.getArticle("cl1");
-    if (!detail.ai_explanation)
-      throw new Error("Expected ai_explanation to be mapped from details");
-    if (!detail.timeline || detail.timeline.length !== 2)
-      throw new Error("Expected timeline with 2 items");
-    if (!detail.citations || detail.citations.length !== 1)
-      throw new Error("Expected citations with 1 item");
-    console.log("detail timeline mapping test passed");
-  } finally {
-    if (originalFetch) globalThis.fetch = originalFetch;
-  }
-})();
+    expect(detail.ai_explanation).toBeTruthy();
+    expect(detail.timeline?.length).toBe(2);
+    expect(detail.citations?.length).toBe(1);
+  });
+});

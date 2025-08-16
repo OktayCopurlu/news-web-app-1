@@ -1,0 +1,1 @@
+Legacy *.test.* files were duplicated during migration. If you still see them in the editor, refresh the file tree. Only *.spec.* files are used by Vitest.

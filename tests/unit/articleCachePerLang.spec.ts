@@ -1,35 +1,39 @@
+import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { newsApi } from "../../src/services/api";
 import { setPreferredLang } from "../../src/utils/lang";
 
-function setupLocalStorageMock() {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  (globalThis as any).localStorage = {
-    store: {} as Record<string, string>,
-    getItem(key: string) {
-      return this.store[key];
-    },
-    setItem(key: string, val: string) {
-      this.store[key] = String(val);
-    },
-    removeItem(key: string) {
-      delete this.store[key];
-    },
-    clear() {
-      this.store = {};
-    },
-  };
+declare global {
+  // eslint-disable-next-line no-var
+  var __origFetch: typeof fetch | undefined;
 }
 
-(async function run() {
-  setupLocalStorageMock();
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  (globalThis as any).window = { location: { href: "http://localhost/" } };
+describe("article cache per lang", () => {
+  beforeEach(() => {
+    (globalThis as any).localStorage = {
+      store: {} as Record<string, string>,
+      getItem(key: string) {
+        return this.store[key];
+      },
+      setItem(key: string, val: string) {
+        this.store[key] = String(val);
+      },
+      removeItem(key: string) {
+        delete this.store[key];
+      },
+      clear() {
+        this.store = {};
+      },
+    };
+    (globalThis as any).window = { location: { href: "http://localhost/" } };
+    global.__origFetch = globalThis.fetch;
+  });
+  afterEach(() => {
+    if (global.__origFetch) globalThis.fetch = global.__origFetch;
+  });
 
-  const originalFetch = globalThis.fetch;
-  try {
-    let calls: number = 0;
+  it("caches by lang and includes correct headers and query", async () => {
+    let calls = 0;
 
-    // First: en fetch and cache
     setPreferredLang("en");
     globalThis.fetch = (async (url: string | URL) => {
       const u = String(url);
@@ -55,15 +59,11 @@ function setupLocalStorageMock() {
       });
     }) as unknown as typeof fetch;
     await newsApi.getArticle("abc");
-    if (calls !== 1)
-      throw new Error("Expected one network call for first en fetch");
+    expect(calls).toBe(1);
 
-    // Second: same lang should hit cache (no new fetch)
     await newsApi.getArticle("abc");
-    if (calls !== 1)
-      throw new Error("Expected cached result for second en fetch");
+    expect(calls).toBe(1);
 
-    // Third: switch to de should cause a new fetch
     setPreferredLang("de");
     globalThis.fetch = (async (url: string | URL, init?: RequestInit) => {
       const u = String(url);
@@ -79,9 +79,8 @@ function setupLocalStorageMock() {
           ([k, v]) => [k.toString(), String(v)]
         )
       );
-      if ((hdrs["Accept-Language"] || hdrs["accept-language"]) !== "de") {
+      if ((hdrs["Accept-Language"] || hdrs["accept-language"]) !== "de")
         throw new Error("Expected Accept-Language: de on de fetch");
-      }
       if (!u.includes("lang=de"))
         throw new Error("Expected lang=de in detail URL");
       const payload = {
@@ -99,16 +98,9 @@ function setupLocalStorageMock() {
       });
     }) as unknown as typeof fetch;
     await newsApi.getArticle("abc");
-    if (Number(calls) !== 2)
-      throw new Error("Expected second network call for de fetch");
+    expect(calls).toBe(2);
 
-    // Fourth: same de should be cached (no new fetch)
     await newsApi.getArticle("abc");
-    if (Number(calls) !== 2)
-      throw new Error("Expected cached result for second de fetch");
-
-    console.log("article per-lang cache test passed");
-  } finally {
-    if (originalFetch) globalThis.fetch = originalFetch;
-  }
-})();
+    expect(calls).toBe(2);
+  });
+});
