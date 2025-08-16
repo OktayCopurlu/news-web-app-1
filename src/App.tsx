@@ -1,4 +1,4 @@
-import { Suspense, lazy } from 'react';
+import { Suspense, lazy, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { ThemeProvider } from './contexts/ThemeContext';
 import { UserProvider } from './contexts/UserContext';
@@ -12,7 +12,6 @@ const QuizPage = lazy(() => import('./pages/QuizPage'));
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { ArticleSkeleton } from './components/Skeleton';
 import { ToastProvider } from './contexts/useToast';
-import { useEffect } from 'react';
 import { useToast } from './contexts/useToast';
 import { getPreferredLang, setDocumentLangDir } from './utils/lang';
 
@@ -29,6 +28,14 @@ function FallbackWatcher(){
   return null;
 }
 
+function LangDirEffect(){
+  useEffect(() => {
+    const lang = getPreferredLang();
+    setDocumentLangDir(lang);
+  }, []);
+  return null;
+}
+
 function App() {
   return (
   <ThemeProvider>
@@ -37,15 +44,7 @@ function App() {
           <ToastProvider>
             <FallbackWatcher />
             {/* Set <html lang> and dir based on preferred language */}
-            {(() => {
-              // Small inline effect runner without adding a new component layer
-              // eslint-disable-next-line react-hooks/rules-of-hooks
-              useEffect(() => {
-                const lang = getPreferredLang();
-                setDocumentLangDir(lang);
-              }, []);
-              return null;
-            })()}
+            <LangDirEffect />
           <Router>
             <ErrorBoundary>
               <div className="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors">

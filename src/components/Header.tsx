@@ -116,7 +116,7 @@ const Header: React.FC = () => {
             <div className="w-8 h-8 bg-gradient-to-br from-blue-600 to-indigo-700 rounded-lg flex items-center justify-center">
               <Globe className="w-5 h-5 text-white" />
             </div>
-            <span className="text-xl font-bold text-gray-900 dark:text-white">
+            <span data-testid="app-title" className="text-xl font-bold text-gray-900 dark:text-white">
               Insight
             </span>
           </Link>

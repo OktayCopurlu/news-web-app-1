@@ -13,7 +13,12 @@ export const useArticles = () => {
   const fetchArticles = async (options: GetArticlesOptions = {}) => {
     try {
       setLoading(true);
-      const data = await newsApi.getArticles(options);
+      // Allow slower backends: wait up to 30s by default before falling back
+      const merged: GetArticlesOptions = {
+        waitMs: options.waitMs ?? 30_000,
+        ...options,
+      };
+      const data = await newsApi.getArticles(merged);
       setArticles(data);
       // Progressive fill: if any are pending, request batch translation for visible items
       const pending = data
@@ -30,7 +35,7 @@ export const useArticles = () => {
           setTimeout(async () => {
             try {
               const refreshed = await newsApi.getArticles({
-                ...options,
+                ...merged,
                 strict: false,
                 noFallback: true,
                 forceRefresh: true,
