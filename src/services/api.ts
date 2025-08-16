@@ -1,7 +1,12 @@
 // Frontend requests go through the BFF only (no direct Supabase client).
 // Transitional monolith API facade – can be split into domain-specific modules later.
 import { apiFetch } from "../utils/fetcher";
-import { getPreferredLang, normalizeLang } from "../utils/lang";
+import {
+  getPreferredLang,
+  normalizeLang,
+  setPreferredLang,
+} from "../utils/lang";
+import { getPreferredMarket, normalizeMarket } from "../utils/market";
 import { normalizeArticle } from "../utils/normalize";
 import type {
   Quiz,
@@ -11,8 +16,10 @@ import type {
 import type { ArticleDetail } from "../types/models";
 
 // Local fallback sample data (dev/demo only)
-// Simple in-memory TTL cache (reset on reload)
+// Keep minimal to avoid bloat; used only when BFF is unavailable
+const FALLBACK_ARTICLES: Array<Parameters<typeof normalizeArticle>[0]> = [];
 
+// Simple in-memory TTL cache (reset on reload)
 interface CacheEntry<T = unknown> {
   value: T | unknown;
   expires: number;
@@ -39,203 +46,6 @@ const cache = {
     });
   },
 };
-const FALLBACK_ARTICLES = [
-  {
-    id: "1",
-    title:
-      "Major Breakthrough in Quantum Computing Achieved by International Research Team",
-    summary:
-      "Scientists from MIT, Google, and several international universities have announced a significant breakthrough in quantum computing that could revolutionize data processing and encryption. The team successfully demonstrated a new quantum algorithm that can solve complex optimization problems exponentially faster than classical computers.",
-    ai_explanation: null,
-    explanation_generated: false,
-    category: "Technology",
-    language: "English",
-    source: "TechCrunch",
-    source_url: "https://example.com/quantum-breakthrough",
-    image_url:
-      "https://images.pexels.com/photos/2599244/pexels-photo-2599244.jpeg",
-    published_at: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
-    reading_time: 5,
-    tags: ["quantum computing", "technology", "breakthrough", "MIT", "Google"],
-    // Fallback sample articles used if BFF returns no data (dev/demo purposes only).
-    audio_summary_url: null,
-    audio_duration: 0,
-    view_count: 1250,
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-    article_analytics: [
-      {
-        bias_score: 0.1,
-        bias_explanation:
-          "Slightly positive coverage focusing on potential benefits",
-        bias_sources: ["AI Analysis", "Source Verification"],
-        sentiment_score: 0.7,
-        sentiment_label: "positive",
-        credibility_score: 0.9,
-      },
-    ],
-    quizzes: [
-      {
-        id: "quiz-1",
-        questions: [
-          {
-            id: "q1",
-            question: "What is the main breakthrough described in the article?",
-            options: [
-              "A new quantum algorithm for optimization problems",
-              "Room temperature superconductors",
-              "Faster internet speeds",
-              "Better smartphone batteries",
-            ],
-            correctAnswer: 0,
-            explanation:
-              "The article specifically mentions a new quantum algorithm that can solve complex optimization problems exponentially faster than classical computers.",
-          },
-          {
-            id: "q2",
-            question: "Which institutions were involved in this research?",
-            options: [
-              "Only MIT",
-              "MIT, Google, and international universities",
-              "Google and Apple",
-              "NASA and SpaceX",
-            ],
-            correctAnswer: 1,
-            explanation:
-              "The article states that scientists from MIT, Google, and several international universities collaborated on this breakthrough.",
-          },
-        ],
-        difficulty: "intermediate",
-      },
-    ],
-    coverage_comparisons: [
-      {
-        comparisons: [
-          {
-            source: "Tech Tribune",
-            perspective:
-              "Focuses on the commercial implications and potential market disruption from quantum computing advances.",
-            bias: 0.3,
-          },
-          {
-            source: "Science Daily",
-            perspective:
-              "Emphasizes the scientific methodology and peer review process, highlighting the technical achievements.",
-            bias: 0.0,
-          },
-        ],
-      },
-    ],
-  },
-  {
-    id: "2",
-    title:
-      "Global Climate Summit Reaches Historic Agreement on Carbon Reduction",
-    summary:
-      "World leaders at the International Climate Summit have reached a groundbreaking agreement to reduce global carbon emissions by 60% over the next decade. The accord includes specific targets for renewable energy adoption and a $500 billion fund for clean energy infrastructure.",
-    ai_explanation: null,
-    explanation_generated: false,
-    category: "Environment",
-    language: "English",
-    source: "Reuters",
-    source_url: "https://example.com/climate-agreement",
-    image_url:
-      "https://images.pexels.com/photos/1108572/pexels-photo-1108572.jpeg",
-    published_at: new Date(Date.now() - 4 * 60 * 60 * 1000).toISOString(),
-    reading_time: 6,
-    tags: [
-      "climate change",
-      "environment",
-      "global summit",
-      "carbon emissions",
-      "renewable energy",
-    ],
-    eli5_summary:
-      "Countries around the world promised to make much less pollution and use clean energy like solar and wind power to help save our planet!",
-    audio_summary_url: null,
-    audio_duration: 0,
-    view_count: 2100,
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-    article_analytics: [
-      {
-        bias_score: -0.1,
-        bias_explanation:
-          "Balanced reporting with slight emphasis on environmental benefits",
-        bias_sources: ["AI Analysis", "Source Verification"],
-        sentiment_score: 0.5,
-        sentiment_label: "positive",
-        credibility_score: 0.95,
-      },
-    ],
-    quizzes: [
-      {
-        id: "quiz-2",
-        questions: [
-          {
-            id: "q1",
-            question: "What is the target for carbon emission reduction?",
-            options: [
-              "40% over the next decade",
-              "50% over the next decade",
-              "60% over the next decade",
-              "70% over the next decade",
-            ],
-            correctAnswer: 2,
-            explanation:
-              "The agreement aims to reduce global carbon emissions by 60% over the next decade.",
-          },
-          {
-            id: "q2",
-            question:
-              "How much funding is allocated for clean energy infrastructure?",
-            options: [
-              "$300 billion",
-              "$400 billion",
-              "$500 billion",
-              "$600 billion",
-            ],
-            correctAnswer: 2,
-            explanation:
-              "The accord includes a $500 billion fund for clean energy infrastructure development.",
-          },
-          {
-            id: "q3",
-            question: "What type of energy adoption does the agreement target?",
-            options: [
-              "Nuclear energy",
-              "Renewable energy",
-              "Natural gas",
-              "Coal with carbon capture",
-            ],
-            correctAnswer: 1,
-            explanation:
-              "The agreement includes specific targets for renewable energy adoption like solar and wind power.",
-          },
-        ],
-        difficulty: "intermediate",
-      },
-    ],
-    coverage_comparisons: [
-      {
-        comparisons: [
-          {
-            source: "Environmental Herald",
-            perspective:
-              "Celebrates the agreement as a historic victory for climate action and environmental protection.",
-            bias: 0.4,
-          },
-          {
-            source: "Business Weekly",
-            perspective:
-              "Focuses on economic implications and potential challenges for industries adapting to new regulations.",
-            bias: -0.2,
-          },
-        ],
-      },
-    ],
-  },
-];
 
 // BFF base resolved centrally (CONFIG in fetcher); inline constant removed.
 
@@ -268,15 +78,53 @@ export const newsApi = {
       market_code: string;
       enabled?: boolean;
       pivot_lang?: string;
+      show_langs?: string[] | string | null;
       pretranslate_langs?: string[] | string | null;
     }>;
     market?: {
       market_code: string;
       pivot_lang?: string;
+      show_langs?: string[] | string | null;
       pretranslate_langs?: string[] | string | null;
     };
   }> => {
-    return apiFetch({ path: `/config`, headers: {} });
+    const market = normalizeMarket(getPreferredMarket());
+    const cfg = await apiFetch<{
+      market?: {
+        market_code: string;
+        pivot_lang?: string;
+        show_langs?: string[] | string | null;
+        pretranslate_langs?: string[] | string | null;
+      };
+      markets?: Array<{
+        market_code: string;
+        pivot_lang?: string;
+        show_langs?: string[] | string | null;
+        pretranslate_langs?: string[] | string | null;
+      }>;
+    }>({ path: `/config?market=${encodeURIComponent(market)}`, headers: {} });
+    try {
+      // If there is NO stored pref_lang yet, set default from config (pivot_lang)
+      // We intentionally ignore navigator.language here to make config authoritative.
+      const hasStored = (() => {
+        try {
+          return (
+            typeof localStorage !== "undefined" &&
+            !!localStorage.getItem("pref_lang")
+          );
+        } catch {
+          return false;
+        }
+      })();
+      if (!hasStored) {
+        const m = cfg.market || (cfg.markets && cfg.markets[0]) || undefined;
+        const pivot = m?.pivot_lang ? normalizeLang(m.pivot_lang) : "en";
+        setPreferredLang(pivot);
+      }
+    } catch {
+      // ignore
+    }
+    return cfg;
   },
   // Fetch all articles
   getArticles: async (
@@ -581,7 +429,14 @@ export const newsApi = {
           origin: "publisher",
           url: mediaUrl2,
         } as RawInput2["media"];
-      const art = normalizeArticle(base as RawInput2);
+      const art = normalizeArticle(base as RawInput2) as ArticleDetail;
+      // Attach detail enrichments if present
+      if (Array.isArray(raw.citations))
+        (art as ArticleDetail).citations = raw.citations;
+      if (Array.isArray(raw.timeline))
+        (art as ArticleDetail).timeline = raw.timeline as NonNullable<
+          ArticleDetail["timeline"]
+        >;
       cache.set(`article:${id}:${langKey}`, art as ArticleDetail, 120_000);
       return art as ArticleDetail;
     } catch {
@@ -630,7 +485,7 @@ export const newsApi = {
   // Search articles
   searchArticles: async (query: string) => {
     return FALLBACK_ARTICLES.filter((a) =>
-      a.title.toLowerCase().includes(query.toLowerCase())
+      a.title?.toLowerCase?.().includes(query.toLowerCase())
     );
   },
 
@@ -695,38 +550,78 @@ export const aiApi = {
 };
 
 export const quizApi = {
-  // Generate quiz for article
+  // Generate quiz for article (cluster-only)
   generateQuiz: async (
     articleId: string,
     difficulty: string = "intermediate"
   ) => {
+    const lang = getPreferredLang();
     return apiFetch<Quiz>({
-      path: `/articles/${articleId}/quiz`,
+      path: `/cluster/${encodeURIComponent(
+        articleId
+      )}/quiz?lang=${encodeURIComponent(lang)}`,
       method: "POST",
       body: { difficulty },
+      headers: { "Accept-Language": lang },
     });
   },
 
-  // Get quiz for article
+  // Get quiz for article (cluster-only)
   getQuiz: async (articleId: string) => {
-    return apiFetch<Quiz>({ path: `/articles/${articleId}/quiz` });
+    const lang = getPreferredLang();
+    return apiFetch<Quiz>({
+      path: `/cluster/${encodeURIComponent(
+        articleId
+      )}/quiz?lang=${encodeURIComponent(lang)}`,
+      headers: { "Accept-Language": lang },
+    });
   },
 };
 
 export const coverageApi = {
-  // Generate coverage comparison
+  // Generate coverage comparison (cluster-only)
   analyzeCoverage: async (articleId: string) => {
-    return apiFetch<CoverageComparison>({
-      path: `/articles/${articleId}/coverage`,
+    const lang = getPreferredLang();
+    const res = await apiFetch<
+      CoverageComparison | { data?: CoverageComparison } | unknown
+    >({
+      path: `/cluster/${encodeURIComponent(
+        articleId
+      )}/coverage?lang=${encodeURIComponent(lang)}`,
       method: "POST",
+      headers: { "Accept-Language": lang },
     });
+    const obj =
+      res &&
+      typeof res === "object" &&
+      "data" in (res as Record<string, unknown>)
+        ? ((res as { data?: CoverageComparison }).data as CoverageComparison)
+        : (res as CoverageComparison);
+    return {
+      comparisons: Array.isArray(obj?.comparisons) ? obj.comparisons : [],
+    } as CoverageComparison;
   },
 
-  // Get coverage comparison
+  // Get coverage comparison (cluster-only)
   getCoverage: async (articleId: string) => {
-    return apiFetch<CoverageComparison>({
-      path: `/articles/${articleId}/coverage`,
+    const lang = getPreferredLang();
+    const res = await apiFetch<
+      CoverageComparison | { data?: CoverageComparison } | unknown
+    >({
+      path: `/cluster/${encodeURIComponent(
+        articleId
+      )}/coverage?lang=${encodeURIComponent(lang)}`,
+      headers: { "Accept-Language": lang },
     });
+    const obj =
+      res &&
+      typeof res === "object" &&
+      "data" in (res as Record<string, unknown>)
+        ? ((res as { data?: CoverageComparison }).data as CoverageComparison)
+        : (res as CoverageComparison);
+    return {
+      comparisons: Array.isArray(obj?.comparisons) ? obj.comparisons : [],
+    } as CoverageComparison;
   },
 };
 

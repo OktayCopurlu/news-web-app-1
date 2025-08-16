@@ -4,7 +4,7 @@ import { useParams, Link, useNavigate } from 'react-router-dom';
 import { Clock, Share2, Bookmark, MessageCircle, BarChart3, Eye, Brain, ArrowLeft, Loader } from 'lucide-react';
 import { useNews } from '../contexts/useNews';
 import { useUser } from '../contexts/useUser';
-import { newsApi, quizApi, coverageApi } from '../services/api';
+import { newsApi, quizApi, coverageApi, aiApi } from '../services/api';
 import { t } from '../i18n';
 import BiasIndicator from '../components/BiasIndicator';
 import CoverageComparison from '../components/CoverageComparison';
@@ -104,12 +104,15 @@ const NewsDetailPage: React.FC = () => {
       // Generate ELI5 summary using AI
       setGeneratingELI5(true);
       try {
-  const envMeta = (import.meta as unknown as { env?: Record<string,string> });
-  const base = envMeta.env?.VITE_BFF_URL || 'http://localhost:4000';
-  const resp = await fetch(`${base}/articles/${article.id}/eli5`, { method:'POST', headers:{'Content-Type':'application/json'} });
-        if(resp.ok){
-          const data = await resp.json();
-          setArticle((prev) => prev ? ({ ...prev, eli5_summary: data.eli5_summary }) : prev);
+        const prompt =
+          'Explain this news story like I\'m 5 (ELI5). Use 3-5 short sentences, simple words, and neutral tone.';
+        const response = await aiApi.sendMessage(article.id, prompt, []);
+        const last = response.messages?.[response.messages.length - 1];
+        const summary = last?.content || '';
+        if (summary) {
+          setArticle((prev) =>
+            prev ? { ...prev, eli5_summary: summary } : prev
+          );
           setShowELI5(true);
         }
       } catch (err) {
@@ -322,7 +325,7 @@ const NewsDetailPage: React.FC = () => {
                   ...article,
                   bias: {
                     score: analytics.bias_score,
-                    explanation: analytics.bias_explanation,
+                    explanation: analytics.bias_explanation || '',
                     sources: analytics.bias_sources
                   },
                   sentiment: {
@@ -419,6 +422,31 @@ const NewsDetailPage: React.FC = () => {
                 <CoverageComparison comparisons={coverageComparison} />
               </div>
             )}
+
+              {/* Timeline */}
+              {Array.isArray(article.timeline) && article.timeline.length > 0 && (
+                <div className="mb-8">
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">Timeline</h3>
+                  <ol className="relative border-l border-gray-200 dark:border-gray-700">
+                    {article.timeline
+                      .slice()
+                      .sort((a, b) => {
+                        const ta = a.happened_at ? Date.parse(a.happened_at) : 0;
+                        const tb = b.happened_at ? Date.parse(b.happened_at) : 0;
+                        return ta - tb;
+                      })
+                      .map((t) => (
+                        <li key={t.id} className="mb-6 ml-4">
+                          <div className="absolute w-3 h-3 bg-blue-200 dark:bg-blue-700 rounded-full mt-1.5 -left-1.5 border border-white dark:border-gray-900" />
+                          <time className="mb-1 text-sm font-normal leading-none text-gray-500 dark:text-gray-400">
+                            {t.happened_at ? formatDate(t.happened_at) : ''}
+                          </time>
+                          <p className="text-gray-700 dark:text-gray-300">{t.text || ''}</p>
+                        </li>
+                      ))}
+                  </ol>
+                </div>
+              )}
 
             {/* AI Chat */}
             {showChat && (

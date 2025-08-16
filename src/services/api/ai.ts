@@ -1,4 +1,5 @@
 import { apiFetch } from "../../utils/fetcher";
+import { getPreferredLang } from "../../utils/lang";
 
 export interface ChatMessage {
   id?: string;
@@ -14,10 +15,18 @@ export const aiApi = {
     chatHistory: ChatMessage[] = []
   ) =>
     apiFetch<{ messages: ChatMessage[] }>({
-      path: `/chat/${articleId}`,
+      path: `/cluster/${encodeURIComponent(
+        articleId
+      )}/chat?lang=${encodeURIComponent(getPreferredLang())}`,
       method: "POST",
       body: { message, chatHistory },
+      headers: { "Accept-Language": getPreferredLang() },
     }),
   getChatHistory: (articleId: string) =>
-    apiFetch<{ messages: ChatMessage[] }>({ path: `/chat/${articleId}` }),
+    apiFetch<{ messages: ChatMessage[] }>({
+      path: `/cluster/${encodeURIComponent(
+        articleId
+      )}/chat?lang=${encodeURIComponent(getPreferredLang())}`,
+      headers: { "Accept-Language": getPreferredLang() },
+    }),
 };

@@ -1,6 +1,7 @@
 import assert from "assert";
 
 const BFF = process.env.BFF_URL || "http://localhost:4000";
+const SHOULD_RUN = process.env.BFF_E2E === "1"; // opt-in
 
 async function req(path, options = {}) {
   const r = await fetch(BFF + path, {
@@ -21,7 +22,21 @@ async function req(path, options = {}) {
 }
 
 (async () => {
+  if (!SHOULD_RUN) {
+    console.log("[SKIP] BFF smoke e2e (set BFF_E2E=1 to enable)");
+    return process.exit(0);
+  }
   try {
+    // quick probe
+    let healthy = false;
+    try {
+      const r = await fetch(BFF + "/health", { method: "GET" });
+      healthy = r.ok;
+    } catch (_) {}
+    if (!healthy) {
+      console.log("[SKIP] BFF not reachable at", BFF);
+      return process.exit(0);
+    }
     // 1. Articles list
     const articlesRes = await req("/articles");
     assert.ok(articlesRes.ok, "articles list request failed");

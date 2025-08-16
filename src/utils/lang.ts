@@ -50,6 +50,11 @@ export function dirFor(lang: string): "rtl" | "ltr" {
   return isRtlLang(lang) ? "rtl" : "ltr";
 }
 
+// Base language (for schema alignment with cluster_ai.lang_base)
+export function baseLang(lang: string): string {
+  return normalizeLang(lang).split("-")[0];
+}
+
 // Safe setter for <html lang> and dir, not wired automatically to avoid surprise UI changes
 export function setDocumentLangDir(lang: string) {
   try {

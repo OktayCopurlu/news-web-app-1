@@ -25,13 +25,17 @@ const Header: React.FC = () => {
     (async () => {
       try {
         const cfg = await newsApi.getConfig();
-        type MarketCfg = { market_code: string; pivot_lang?: string; pretranslate_langs?: string[] | string | null };
+        type MarketCfg = { market_code: string; pivot_lang?: string; show_langs?: string[] | string | null; pretranslate_langs?: string[] | string | null };
         const markets: MarketCfg[] = (cfg as { market?: MarketCfg; markets?: MarketCfg[] }).market
           ? [ (cfg as { market?: MarketCfg }).market as MarketCfg ]
           : (cfg as { market?: MarketCfg; markets?: MarketCfg[] }).markets || [];
         const set = new Set<string>();
         for (const m of markets) {
           if (m?.pivot_lang) set.add(normalizeLang(m.pivot_lang));
+          const sl = Array.isArray(m?.show_langs)
+            ? m.show_langs
+            : typeof m?.show_langs === 'string' ? m.show_langs.split(',') : [];
+          sl.forEach((l: string) => set.add(normalizeLang(l)));
           const pls = Array.isArray(m?.pretranslate_langs)
             ? m.pretranslate_langs
             : typeof m?.pretranslate_langs === 'string'
@@ -47,6 +51,14 @@ const Header: React.FC = () => {
             ...fromConfig,
           ]));
           setLangOptions(union);
+          // If current language is not in options, switch to pivot_lang if available
+          const primary = markets[0];
+          const pivot = primary?.pivot_lang ? normalizeLang(primary.pivot_lang) : undefined;
+          if (!union.includes(lang) && pivot && union.includes(pivot)) {
+            setLang(pivot);
+            setPreferredLang(pivot);
+            setDocumentLangDir(pivot);
+          }
         }
       } catch {
         // ignore; keep defaults

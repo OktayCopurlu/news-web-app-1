@@ -82,6 +82,22 @@ export interface ArticleDetail extends ArticleSummary {
   media?: MediaAsset | null;
   // Translation readiness hint from BFF (/feed non-strict)
   translation_status?: "ready" | "pending";
+  // Detail-specific enrichments (from /cluster/:id)
+  citations?: Array<{
+    id: string;
+    title?: string;
+    url?: string;
+    source_id?: string;
+    source_name?: string;
+  }>;
+  timeline?: Array<{
+    id: string;
+    text?: string;
+    language?: string;
+    translated_from?: string | null;
+    happened_at?: string; // ISO
+    source_id?: string;
+  }>;
 }
 
 export interface UserPreferences {
