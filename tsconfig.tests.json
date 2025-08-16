@@ -5,10 +5,12 @@
     "outDir": "dist-tests",
     "moduleResolution": "Node",
     "esModuleInterop": true,
-    "allowJs": false
+    "allowJs": false,
+    "jsx": "react-jsx"
   },
   "include": [
     "tests/unit/**/*.ts",
+    "tests/unit/**/*.tsx",
     "src/utils/normalize.ts",
     "src/utils/fetcher.ts"
   ],
