@@ -226,7 +226,7 @@ const NewsDetailPage: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="max-w-4xl mx-auto px-0 sm:px-6 lg:px-8 py-8">
         {/* Back Button */}
         <Link
           to="/"
@@ -236,8 +236,8 @@ const NewsDetailPage: React.FC = () => {
           <span>{t('backToNews')}</span>
         </Link>
 
-        {/* Article Header */}
-        <article className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg overflow-hidden">
+  {/* Article Header */}
+  <article className="bg-white dark:bg-gray-800 shadow-lg">
           {/* Hero Image */}
           <div className="relative h-64 sm:h-80">
             {(() => {
@@ -252,7 +252,7 @@ const NewsDetailPage: React.FC = () => {
                     srcSet={srcSet}
                     sizes={sizes}
                     alt={article.title}
-                    className="w-full h-full object-cover"
+                    className="w-full h-full object-cover rounded-none"
                     loading="eager"
                   />
                 );
@@ -261,7 +261,7 @@ const NewsDetailPage: React.FC = () => {
                 <img
                   src={article.image_url || ''}
                   alt={article.title}
-                  className="w-full h-full object-cover"
+                  className="w-full h-full object-cover rounded-none"
                 />
               );
             })()}
@@ -278,7 +278,7 @@ const NewsDetailPage: React.FC = () => {
                 </span>
                 <span>{formatDate(article.published_at)}</span>
               </div>
-              <h1 className="text-2xl sm:text-3xl font-bold text-white leading-tight">
+              <h1 className="font-serif text-headline sm:text-display-2 font-black text-white leading-tight">
                 {article.title}
               </h1>
             </div>
