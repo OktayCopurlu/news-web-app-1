@@ -51,7 +51,7 @@ const NewsCard: React.FC<NewsCardProps> = ({ article, featured = false }) => {
   }, [article.image_url, media]);
 
   return (
-    <article data-testid="news-card" className={`bg-white dark:bg-gray-800 rounded-xl shadow-sm hover:shadow-md transition-all duration-200 overflow-hidden group ${
+    <article data-testid="news-card" className={`bg-white dark:bg-gray-800 rounded-none sm:rounded-xl shadow-none sm:shadow-md sm:hover:shadow-lg transition-all duration-200 overflow-hidden group ${
       featured ? 'md:col-span-2 lg:col-span-1' : ''
     }`}>
       <Link to={`/news/${article.id}`}>

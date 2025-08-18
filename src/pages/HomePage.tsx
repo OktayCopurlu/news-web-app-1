@@ -8,7 +8,6 @@ import NewsCard from '../components/NewsCard'
 import CategoryFilter from '../components/CategoryFilter'
 import PersonalizationBanner from '../components/PersonalizationBanner'
 import TopHeadlines from '../components/TopHeadlines'
-import TrendingTopics from '../components/TrendingTopics'
 
 const HomePage: React.FC = () => {
   const [searchParams] = useSearchParams()
@@ -141,13 +140,13 @@ const HomePage: React.FC = () => {
       {/* Personalization Banner */}
       {!user?.onboarding_complete && <PersonalizationBanner />}
       
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="max-w-7xl mx-auto sm:px-6 lg:px-8 py-8">
         {/* Top Headlines */}
         {articles.length > 0 && <TopHeadlines />}
         
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-8 mt-8">
           {/* Main Content */}
-          <div className="lg:col-span-3">
+          <div className="lg:col-span-4">
             {articles.length > 0 && (
               <>
                 {/* Category Filter */}
@@ -183,10 +182,7 @@ const HomePage: React.FC = () => {
             )}
           </div>
           
-          {/* Sidebar */}
-          <div className="lg:col-span-1">
-            <TrendingTopics />
-          </div>
+          
         </div>
       </div>
     </div>
