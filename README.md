@@ -1,4 +1,4 @@
-Insight-frontend
+news-web-app-1
 
 Development
 
