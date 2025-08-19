@@ -17,47 +17,49 @@ const Header: React.FC = () => {
   const { searchArticles, reloadArticles } = useNews();
   const navigate = useNavigate();
   const [lang, setLang] = useState<string>(getPreferredLang());
-  const DEFAULT_LANG_OPTIONS = ["en","tr","de","fr","es","ar"] as const;
-  const [langOptions, setLangOptions] = useState<string[]>([...DEFAULT_LANG_OPTIONS]);
+  // Options strictly controlled by /config -> market.show_langs
+  const [langOptions, setLangOptions] = useState<string[]>([]);
+  const [showLangSelector, setShowLangSelector] = useState<boolean>(false);
 
   useEffect(() => {
     let mounted = true;
     (async () => {
       try {
         const cfg = await newsApi.getConfig();
-        type MarketCfg = { market_code: string; pivot_lang?: string; show_langs?: string[] | string | null; pretranslate_langs?: string[] | string | null };
-        const markets: MarketCfg[] = (cfg as { market?: MarketCfg; markets?: MarketCfg[] }).market
-          ? [ (cfg as { market?: MarketCfg }).market as MarketCfg ]
-          : (cfg as { market?: MarketCfg; markets?: MarketCfg[] }).markets || [];
-        const set = new Set<string>();
-        for (const m of markets) {
-          if (m?.pivot_lang) set.add(normalizeLang(m.pivot_lang));
-          const sl = Array.isArray(m?.show_langs)
-            ? m.show_langs
-            : typeof m?.show_langs === 'string' ? m.show_langs.split(',') : [];
-          sl.forEach((l: string) => set.add(normalizeLang(l)));
-          const pls = Array.isArray(m?.pretranslate_langs)
-            ? m.pretranslate_langs
-            : typeof m?.pretranslate_langs === 'string'
-              ? m.pretranslate_langs.split(',')
-              : [];
-          pls.forEach((l: string) => set.add(normalizeLang(l)));
-        }
+        type MarketCfg = { market?: string; market_code?: string; pivot_lang?: string; show_langs?: string[] | string | null };
+        // BFF returns either a single market object (with show_langs at top-level)
+        // or an object { markets: MarketCfg[] }
+        const marketsArr = (cfg as { markets?: MarketCfg[] })?.markets;
+        const market: MarketCfg | undefined = Array.isArray(marketsArr) && marketsArr.length
+          ? (marketsArr[0] as MarketCfg)
+          : (cfg as unknown as MarketCfg);
+        const rawShow = (market && 'show_langs' in market) ? market.show_langs : undefined;
+        const opts = (Array.isArray(rawShow)
+          ? rawShow
+          : typeof rawShow === 'string'
+            ? rawShow.split(',')
+            : []
+        )
+          .map((l) => normalizeLang(l))
+          .filter(Boolean);
         if (mounted) {
-          const fromConfig = Array.from(set.values());
-          // Union with defaults so fallback /config can't collapse options to only 'en'
-          const union = Array.from(new Set([...
-            DEFAULT_LANG_OPTIONS,
-            ...fromConfig,
-          ]));
-          setLangOptions(union);
-          // If current language is not in options, switch to pivot_lang if available
-          const primary = markets[0];
-          const pivot = primary?.pivot_lang ? normalizeLang(primary.pivot_lang) : undefined;
-          if (!union.includes(lang) && pivot && union.includes(pivot)) {
-            setLang(pivot);
-            setPreferredLang(pivot);
-            setDocumentLangDir(pivot);
+          setLangOptions(opts);
+          // Show selector only when there are at least 2 choices
+          setShowLangSelector(opts.length > 1);
+
+          // Coerce current language to an allowed option if necessary
+          if (opts.length > 0 && !opts.includes(lang)) {
+            const pivot = market?.pivot_lang ? normalizeLang(market.pivot_lang) : undefined;
+            const next = (pivot && opts.includes(pivot)) ? pivot : opts[0];
+            if (next) {
+              setLang(next);
+              setPreferredLang(next);
+              setDocumentLangDir(next);
+              // sync URL
+              const url = new URL(window.location.href);
+              url.searchParams.set('lang', next);
+              navigate(url.pathname + url.search + url.hash, { replace: true });
+            }
           }
         }
       } catch {
@@ -139,22 +141,24 @@ const Header: React.FC = () => {
           {/* Search and Actions */}
           <div className="flex items-center space-x-4">
             {/* Language Selector (minimal) */}
-            <div className="hidden md:block">
-              <label className="sr-only" htmlFor="lang-select">Language</label>
-              <div className="flex items-center gap-2">
-                <Globe className="w-4 h-4 text-gray-500 dark:text-gray-400" />
-                <select
-                  id="lang-select"
-                  value={lang}
-                  onChange={handleLangChange}
-                  className="text-sm bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md px-2 py-1 text-gray-700 dark:text-gray-200"
-                >
-                  {langOptions.map((opt) => (
-                    <option key={opt} value={opt}>{opt}</option>
-                  ))}
-                </select>
+            {showLangSelector && langOptions.length > 1 && (
+              <div className="hidden md:block">
+                <label className="sr-only" htmlFor="lang-select">Language</label>
+                <div className="flex items-center gap-2">
+                  <Globe className="w-4 h-4 text-gray-500 dark:text-gray-400" />
+                  <select
+                    id="lang-select"
+                    value={lang}
+                    onChange={handleLangChange}
+                    className="text-sm bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md px-2 py-1 text-gray-700 dark:text-gray-200"
+                  >
+                    {langOptions.map((opt) => (
+                      <option key={opt} value={opt}>{opt}</option>
+                    ))}
+                  </select>
+                </div>
               </div>
-            </div>
+            )}
             {/* Search Toggle */}
             <button
               onClick={() => setShowSearch(!showSearch)}
@@ -246,22 +250,24 @@ const Header: React.FC = () => {
                 {t('browseArchive')}
               </Link>
               {/* Mobile language selector */}
-              <div className="pt-3">
-                <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1" htmlFor="lang-select-mobile">Language</label>
-                <div className="flex items-center gap-2">
-                  <Globe className="w-4 h-4 text-gray-500 dark:text-gray-400" />
-                  <select
-                    id="lang-select-mobile"
-                    value={lang}
-                    onChange={async (e) => { await handleLangChange(e); setIsMenuOpen(false); }}
-                    className="w-full text-sm bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md px-2 py-1 text-gray-700 dark:text-gray-200"
-                  >
-                    {langOptions.map((opt) => (
-                      <option key={opt} value={opt}>{opt}</option>
-                    ))}
-                  </select>
+              {showLangSelector && langOptions.length > 1 && (
+                <div className="pt-3">
+                  <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1" htmlFor="lang-select-mobile">Language</label>
+                  <div className="flex items-center gap-2">
+                    <Globe className="w-4 h-4 text-gray-500 dark:text-gray-400" />
+                    <select
+                      id="lang-select-mobile"
+                      value={lang}
+                      onChange={async (e) => { await handleLangChange(e); setIsMenuOpen(false); }}
+                      className="w-full text-sm bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md px-2 py-1 text-gray-700 dark:text-gray-200"
+                    >
+                      {langOptions.map((opt) => (
+                        <option key={opt} value={opt}>{opt}</option>
+                      ))}
+                    </select>
+                  </div>
                 </div>
-              </div>
+              )}
             </nav>
           </div>
         )}
