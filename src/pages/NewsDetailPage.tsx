@@ -19,6 +19,12 @@ const NewsDetailPage: React.FC = () => {
   const [article, setArticle] = useState<ArticleDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [bodyLoading, setBodyLoading] = useState(true);
+  const [bodyError, setBodyError] = useState<string | null>(null);
+  const [bodyHtml, setBodyHtml] = useState<string>("");
+  // const [bodyLang, setBodyLang] = useState<string>("");
+  const [bodyDir, setBodyDir] = useState<string | undefined>(undefined);
+  const [bodySource, setBodySource] = useState<"original" | "translation" | undefined>(undefined);
   const [generatingExplanation, setGeneratingExplanation] = useState(false);
   const [showELI5, setShowELI5] = useState(false);
   const [showCoverage, setShowCoverage] = useState(false);
@@ -50,6 +56,26 @@ const NewsDetailPage: React.FC = () => {
 
     fetchArticle();
   }, [id, getArticleById]);
+
+  // Fetch persisted full text (original or translation) for this article
+  useEffect(() => {
+    const run = async () => {
+      if (!id) return;
+      try {
+        setBodyLoading(true);
+        setBodyError(null);
+        const resp = await newsApi.getArticleFullText(id);
+  setBodyHtml(resp.body || "");
+        setBodyDir(resp.dir);
+        setBodySource(resp.source);
+  } catch {
+        setBodyError('Failed to load article body');
+      } finally {
+        setBodyLoading(false);
+      }
+    };
+    run();
+  }, [id]);
 
   // Auto-generate explanation when article loads
   useEffect(() => {
@@ -454,6 +480,29 @@ const NewsDetailPage: React.FC = () => {
                 <AIChat article={{ id: article.id, title: article.title }} />
               </div>
             )}
+
+            {/* Persisted Full Article Body */}
+            <div className="mb-8">
+              <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+                <span>Article</span>
+                {bodySource === 'translation' && (
+                  <span className="text-xs px-2 py-1 rounded bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300">Translated</span>
+                )}
+              </h2>
+              {bodyLoading ? (
+                <div className="text-center py-6 text-gray-600 dark:text-gray-400">
+                  <Loader className="w-5 h-5 animate-spin inline-block mr-2" /> Loading article...
+                </div>
+              ) : bodyError ? (
+                <div className="text-sm text-red-600 dark:text-red-400">{bodyError}</div>
+              ) : bodyHtml ? (
+                <div className="prose prose-lg dark:prose-invert max-w-none" dir={bodyDir}>
+                  <div dangerouslySetInnerHTML={{ __html: bodyHtml }} />
+                </div>
+              ) : (
+                <div className="text-sm text-gray-600 dark:text-gray-400">No content available.</div>
+              )}
+            </div>
 
             {/* Full Article Content */}
             <div className="mb-8">

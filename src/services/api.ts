@@ -179,6 +179,7 @@ export const newsApi = {
         source?: string;
         source_url?: string | null;
         image_url?: string | null;
+        published_at?: string;
         representative_published_at?: string;
         updated_at?: string;
         reading_time?: number;
@@ -231,6 +232,7 @@ export const newsApi = {
           language: normalizeLang(c.lang || c.language || lang),
           source: c.top_source || c.source || "Various",
           published_at:
+            c.published_at ||
             c.representative_published_at ||
             c.updated_at ||
             new Date().toISOString(),
@@ -315,130 +317,171 @@ export const newsApi = {
     if (a) return a as ArticleDetail;
     try {
       const lang = getPreferredLang();
-      const data = await apiFetch<unknown>({
-        path: `/cluster/${encodeURIComponent(id)}?lang=${encodeURIComponent(
-          lang
-        )}`,
-        headers: { "Accept-Language": lang },
-      });
-      // BFF returns envelope { data: { cluster, ai_title, ai_summary, ai_details, dir, citations, media } }
-      // Map to ArticleDetail for the detail page
-      type ClusterDetail = {
-        id?: string;
-        ai_title?: string;
-        title?: string;
-        ai_summary?: string;
-        summary?: string;
-        short_summary?: string;
-        summary_text?: string;
-        desc?: string;
-        // Some responses may include a rich detail field
-        ai_details?: string;
-        details?: string;
-        ai_explanation?: string;
-        category?: string;
-        cluster?: { category?: string };
-        lang?: string;
-        language?: string;
-        top_source?: string;
-        source?: string;
-        source_url?: string | null;
-        image_url?: string | null;
-        media?: { url?: string } | null;
-        representative_published_at?: string;
-        updated_at?: string;
-        reading_time?: number;
-        tags?: string[];
-        dir?: string;
-        coverage_count?: number;
-        timeline?: Array<{
-          id: string;
-          text?: string;
-          language?: string;
-          translated_from?: string | null;
-          happened_at?: string; // ISO
-          source_id?: string;
-        }>;
-        citations?: Array<{
-          id: string;
+      // First try: cluster detail (when id is a cluster id)
+      try {
+        const data = await apiFetch<unknown>({
+          path: `/cluster/${encodeURIComponent(id)}?lang=${encodeURIComponent(
+            lang
+          )}`,
+          headers: { "Accept-Language": lang },
+        });
+        // BFF returns envelope { data: { cluster, ai_title, ai_summary, ai_details, dir, citations, media } }
+        // Map to ArticleDetail for the detail page
+        type ClusterDetail = {
+          id?: string;
+          ai_title?: string;
           title?: string;
-          url?: string;
-          source_id?: string;
-          source_name?: string;
-        }>;
-      };
-      const payload2: unknown = data;
-      let raw: ClusterDetail = {};
-      if (
-        payload2 &&
-        typeof payload2 === "object" &&
-        "data" in (payload2 as Record<string, unknown>)
-      ) {
-        raw = ((payload2 as { data: unknown }).data || {}) as ClusterDetail;
-      } else {
-        raw = (payload2 || {}) as ClusterDetail;
+          ai_summary?: string;
+          summary?: string;
+          short_summary?: string;
+          summary_text?: string;
+          desc?: string;
+          // Some responses may include a rich detail field
+          ai_details?: string;
+          details?: string;
+          ai_explanation?: string;
+          category?: string;
+          cluster?: { category?: string };
+          lang?: string;
+          language?: string;
+          top_source?: string;
+          source?: string;
+          source_url?: string | null;
+          image_url?: string | null;
+          media?: { url?: string } | null;
+          representative_published_at?: string;
+          updated_at?: string;
+          reading_time?: number;
+          tags?: string[];
+          dir?: string;
+          coverage_count?: number;
+          timeline?: Array<{
+            id: string;
+            text?: string;
+            language?: string;
+            translated_from?: string | null;
+            happened_at?: string; // ISO
+            source_id?: string;
+          }>;
+          citations?: Array<{
+            id: string;
+            title?: string;
+            url?: string;
+            source_id?: string;
+            source_name?: string;
+          }>;
+        };
+        const payload2: unknown = data;
+        let raw: ClusterDetail = {};
+        if (
+          payload2 &&
+          typeof payload2 === "object" &&
+          "data" in (payload2 as Record<string, unknown>)
+        ) {
+          raw = ((payload2 as { data: unknown }).data || {}) as ClusterDetail;
+        } else {
+          raw = (payload2 || {}) as ClusterDetail;
+        }
+        type RawInput2 = Parameters<typeof normalizeArticle>[0];
+        const firstCitation = raw.citations && raw.citations[0];
+        const firstTimeline = raw.timeline && raw.timeline[0];
+        const base: Partial<RawInput2> & { id: string } = {
+          id: raw.id || id,
+          title: raw.ai_title || raw.title,
+          // Broader summary fallback options in case backend uses different naming
+          summary:
+            raw.ai_summary ||
+            raw.summary ||
+            raw.short_summary ||
+            raw.summary_text ||
+            raw.desc ||
+            "",
+          // Map rich explanation field if available so detail page shows content
+          ai_explanation:
+            raw.ai_details || raw.details || raw.ai_explanation || null,
+          category: raw.category || raw.cluster?.category || "general",
+          language: normalizeLang(raw.lang || raw.language || lang),
+          // Prefer citation source if present
+          source:
+            firstCitation?.source_name ||
+            raw.top_source ||
+            raw.source ||
+            "Various",
+          published_at:
+            firstTimeline?.happened_at ||
+            raw.representative_published_at ||
+            raw.updated_at ||
+            new Date().toISOString(),
+          // Only include reading_time if backend provides a positive value; otherwise let normalizer compute
+          reading_time:
+            typeof raw.reading_time === "number" && raw.reading_time > 0
+              ? raw.reading_time
+              : undefined,
+          tags: raw.tags || [],
+        };
+        // Prefer citation URL as source_url if available
+        if (
+          firstCitation?.url ||
+          raw.source_url ||
+          typeof raw.source_url === "string"
+        )
+          base.source_url = firstCitation?.url || raw.source_url || undefined;
+        const mediaUrl2 = raw.image_url || raw.media?.url;
+        if (mediaUrl2)
+          base.media = {
+            id: `${id}-img`,
+            origin: "publisher",
+            url: mediaUrl2,
+          } as RawInput2["media"];
+        const art = normalizeArticle(base as RawInput2) as ArticleDetail;
+        // Attach detail enrichments if present
+        if (Array.isArray(raw.citations))
+          (art as ArticleDetail).citations = raw.citations;
+        if (Array.isArray(raw.timeline))
+          (art as ArticleDetail).timeline = raw.timeline as NonNullable<
+            ArticleDetail["timeline"]
+          >;
+        cache.set(`article:${id}:${langKey}`, art as ArticleDetail, 120_000);
+        return art as ArticleDetail;
+      } catch {
+        // Fallback: id is an article ID, fetch combined article/translations object
+        const full = await apiFetch<{
+          id: string;
+          language?: string;
+          headline?: string;
+          summary?: string;
+          body?: string;
+          url?: string | null;
+          canonical_url?: string | null;
+          image_url?: string | null;
+          published_at?: string | null;
+          dir?: string;
+          is_translated?: boolean;
+          translated_from?: string | null;
+          tags?: string[];
+        }>({
+          path: `/article/${encodeURIComponent(id)}?lang=${encodeURIComponent(
+            lang
+          )}`,
+          headers: { "Accept-Language": lang },
+        });
+        type RawInput2 = Parameters<typeof normalizeArticle>[0];
+        const base: Partial<RawInput2> & { id: string } = {
+          id: full.id || id,
+          title: full.headline || "",
+          summary: full.summary || "",
+          category: "general",
+          language: normalizeLang(full.language || lang),
+          source: "Publisher",
+          source_url: full.canonical_url || full.url || undefined,
+          image_url: full.image_url || undefined,
+          published_at: full.published_at || new Date().toISOString(),
+          tags: full.tags || [],
+        };
+        const art = normalizeArticle(base as RawInput2) as ArticleDetail;
+        cache.set(`article:${id}:${langKey}`, art as ArticleDetail, 120_000);
+        return art as ArticleDetail;
       }
-      type RawInput2 = Parameters<typeof normalizeArticle>[0];
-      const firstCitation = raw.citations && raw.citations[0];
-      const firstTimeline = raw.timeline && raw.timeline[0];
-      const base: Partial<RawInput2> & { id: string } = {
-        id: raw.id || id,
-        title: raw.ai_title || raw.title,
-        // Broader summary fallback options in case backend uses different naming
-        summary:
-          raw.ai_summary ||
-          raw.summary ||
-          raw.short_summary ||
-          raw.summary_text ||
-          raw.desc ||
-          "",
-        // Map rich explanation field if available so detail page shows content
-        ai_explanation:
-          raw.ai_details || raw.details || raw.ai_explanation || null,
-        category: raw.category || raw.cluster?.category || "general",
-        language: normalizeLang(raw.lang || raw.language || lang),
-        // Prefer citation source if present
-        source:
-          firstCitation?.source_name ||
-          raw.top_source ||
-          raw.source ||
-          "Various",
-        published_at:
-          firstTimeline?.happened_at ||
-          raw.representative_published_at ||
-          raw.updated_at ||
-          new Date().toISOString(),
-        // Only include reading_time if backend provides a positive value; otherwise let normalizer compute
-        reading_time:
-          typeof raw.reading_time === "number" && raw.reading_time > 0
-            ? raw.reading_time
-            : undefined,
-        tags: raw.tags || [],
-      };
-      // Prefer citation URL as source_url if available
-      if (
-        firstCitation?.url ||
-        raw.source_url ||
-        typeof raw.source_url === "string"
-      )
-        base.source_url = firstCitation?.url || raw.source_url || undefined;
-      const mediaUrl2 = raw.image_url || raw.media?.url;
-      if (mediaUrl2)
-        base.media = {
-          id: `${id}-img`,
-          origin: "publisher",
-          url: mediaUrl2,
-        } as RawInput2["media"];
-      const art = normalizeArticle(base as RawInput2) as ArticleDetail;
-      // Attach detail enrichments if present
-      if (Array.isArray(raw.citations))
-        (art as ArticleDetail).citations = raw.citations;
-      if (Array.isArray(raw.timeline))
-        (art as ArticleDetail).timeline = raw.timeline as NonNullable<
-          ArticleDetail["timeline"]
-        >;
-      cache.set(`article:${id}:${langKey}`, art as ArticleDetail, 120_000);
-      return art as ArticleDetail;
     } catch {
       const fallback = FALLBACK_ARTICLES.find((a) => a.id === id);
       if (!fallback) throw new Error("Article not found");
@@ -497,6 +540,40 @@ export const newsApi = {
   // Get trending topics
   getTrending: async () => {
     return [];
+  },
+
+  // Get persisted full text (original or translated) for article detail
+  getArticleFullText: async (
+    id: string
+  ): Promise<{
+    id: string;
+    language: string;
+    body: string;
+    dir?: string;
+    source?: "original" | "translation";
+    key?: string;
+  }> => {
+    const lang = getPreferredLang();
+    const resp = await apiFetch<{
+      id: string;
+      language: string;
+      body: string;
+      dir?: string;
+      is_translated?: boolean;
+      translated_from?: string | null;
+    }>({
+      path: `/article/${encodeURIComponent(id)}/body?lang=${encodeURIComponent(
+        lang
+      )}`,
+      headers: { "Accept-Language": lang },
+    });
+    return {
+      id: resp.id,
+      language: resp.language,
+      body: resp.body,
+      dir: resp.dir,
+      source: resp.is_translated ? "translation" : "original",
+    };
   },
 };
 
